@@ -1,11 +1,11 @@
 #Environment dev
 version: '3'
 services:
-  ui:
+  prod:
     build: 
       context: .
-    image: "mint-project/ui:latest"
+    image: "mint-project/modelexplorer:latest"
     volumes:
       - ./build:/home/node/app
     ports:
-      - 12122:80        
+      - 12123:80        
