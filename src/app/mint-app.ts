@@ -18,7 +18,7 @@ import { store, RootState } from './store';
 
 // These are the actions needed by this element.
 import {
-  navigate, fetchUser, signOut, signIn, goToPage,
+  navigate, fetchUser, signIn, goToPage,
 } from './actions';
 
 import '../screens/modeling/modeling-home';
@@ -27,10 +27,11 @@ import '../screens/regions/regions-home';
 import '../screens/models/models-home';
 import '../screens/analysis/analysis-home';
 import '../screens/variables/variables-home';
+//import '../screens/models/models-explore/model-explore';
+import '../screens/models/model-explore/model-explore';
 
 import { SharedStyles } from '../styles/shared-styles';
 import { showDialog, hideDialog, formElementsComplete } from '../util/ui_functions';
-import { User } from 'firebase';
 
 @customElement('mint-app')
 export class MintApp extends connect(store)(LitElement) {
@@ -40,14 +41,11 @@ export class MintApp extends connect(store)(LitElement) {
   @property({type: String})
   private _page = '';
 
+  @property({type: String})
+  private _selectedModel = '';
+
   @property({type:Boolean})
   private _drawerOpened = false;
-
-  @property({type: Object})
-  private user!: User;
-
-  @property({type: Object})
-  private _selectedRegion? : string;
 
   static get styles() {
     return [
@@ -138,83 +136,32 @@ export class MintApp extends connect(store)(LitElement) {
       <wl-nav>
         <div slot="title">
         
-          ${this.user ? 
-            html `
             <ul class="breadcrumbs">
               <li @click="${()=>goToPage('home')}"
                   class=${(this._page == 'home' ? 'active' : '')}>
                   <div style="vertical-align:middle">
                     ▶
-                    ${this._selectedRegion ?  this._selectedRegion : "Select Country"}
+                    Model catalog
                   </div>
               </li>
-              ${!this._selectedRegion ? 
-                "" : 
-                html`
-                <li @click="${()=>goToPage('datasets')}"
-                    class=${(this._page == 'datasets'? 'active': '')}
-                  >Explore Data</li>
-                <li @click="${()=>goToPage('regions')}"
-                    class=${(this._page == 'regions'? 'active': '')}
-                  >Define Regions</li>
-                <li @click="${()=>goToPage('models')}"
-                    class=${(this._page == 'models'? 'active': '')}
-                  >Prepare Models</li>
-                <li @click="${()=>goToPage('modeling')}"
-                    class=${(this._page == 'modeling') ? 'active': ''}
-                  class="active">Use Models</li>
-                <li @click="${()=>goToPage('analysis')}"
-                    class=${(this._page == 'analysis'? 'active': '')}
-                  >Prepare Reports</li>
-                `
-              }
+              ${this._selectedModel? html`<li class="active">${this._selectedModel.split('/').pop()}</li>` : html``}
             </ul>
-            `
-            : html ``
-          }
 
         </div>
         <div slot="right">
-          ${this.user == null ? 
-            html`
-            <wl-button flat inverted @click="${this._showLoginWindow}">
-              LOGIN &nbsp;
-              <wl-icon alt="account">account_circle</wl-icon>
-            </wl-button>
-            `
-            :
-            html `
-            <wl-button flat inverted @click="${signOut}">
-              LOGOUT ${this.user.email}
-            </wl-button>
-            `
-          }
+          <a class="title" ><img height="40" src="/images/logo.png"></a>
         </div>
       </wl-nav>
 
-      ${this.user ? 
-        html `
         <div class="sectionframe">
 
           <div id="right">
             <div class="card">
               <!-- Main Pages -->
-              <app-home class="page fullpage" ?active="${this._page == 'home'}"></app-home>
-              <datasets-home class="page fullpage" ?active="${this._page == 'datasets'}"></datasets-home>
-              <regions-home class="page fullpage" ?active="${this._page == 'regions'}"></regions-home>
-              <variables-home class="page fullpage" ?active="${this._page == 'variables'}"></variables-home>
-              <models-home class="page fullpage" ?active="${this._page == 'models'}"></models-home>
-              <modeling-home class="page fullpage" ?active="${this._page == 'modeling'}"></modeling-home>
-              <analysis-home class="page fullpage" ?active="${this._page == 'analysis'}"></analysis-home>
+              <model-explorer class="page fullpage" active></model-explorer>
             </div>
           </div>
         </div>
-        `
-        :
-        html `
-          <center><wl-title level="3"><br /><br />Please Login to Continue</wl-title></center>
-        `
-      }
     </div>
 
     ${this._renderDialogs()}
@@ -291,10 +238,8 @@ export class MintApp extends connect(store)(LitElement) {
 
   stateChanged(state: RootState) {
     this._page = state.app!.page;
-    this.user = state.app!.user!;
-    let regionid = state.ui.selected_top_regionid;
-    if(regionid) {
-      this._selectedRegion = regionid.replace(/_/g, ' ').toUpperCase();
+    if (state.explorerUI && state.explorerUI.selectedModel != this._selectedModel) {
+        this._selectedModel = state.explorerUI.selectedModel;
     }
   }
 }

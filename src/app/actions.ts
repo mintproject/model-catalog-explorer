@@ -15,7 +15,7 @@ import { queryDatasetDetail } from '../screens/datasets/actions';
 import { queryModelDetail } from '../screens/models/actions';
 import { explorerClearModel, explorerSetModel, explorerSetVersion, explorerSetConfig,
          explorerSetCalibration } from '../screens/models/model-explore/ui-actions';
-import { selectScenario, selectPathway, selectSubgoal, selectPathwaySection, selectTopRegion } from './ui-actions';
+import { selectScenario, selectPathway, selectSubgoal, selectPathwaySection } from './ui-actions';
 import { auth } from '../config/firebase';
 import { User } from 'firebase';
 
@@ -64,9 +64,7 @@ export const signOut = () => {
 
 
 export const goToPage = (page:string) => {
-  let state: any = store.getState();
-  let regionid = state.ui ? state.ui.selected_top_regionid : "";
-  let url = BASE_HREF + (regionid ? regionid + "/" : "") + page;
+  let url = BASE_HREF + page;
   window.history.pushState({}, page, url);
   store.dispatch(navigate(decodeURIComponent(location.pathname)));    
 }
@@ -75,12 +73,7 @@ export const navigate: ActionCreator<ThunkResult> = (path: string) => (dispatch)
   console.log(path);
   // Extract the page name from path.
   let cpath = path === BASE_HREF ? '/home' : path.slice(BASE_HREF.length);
-  let regionIndex = cpath.indexOf("/");
-
-  let regionid = cpath.substr(0, regionIndex);
-  store.dispatch(selectTopRegion(regionid));
-
-  let page = cpath.substr(regionIndex + 1);
+  let page = cpath.substr(0);
   let subpage = 'home';
 
   let params = page.split("/");
@@ -101,6 +94,7 @@ const loadPage: ActionCreator<ThunkResult> =
   switch(page) {
     case 'home':
       import('../screens/home/app-home').then((_module) => {
+        store.dispatch(explorerClearModel());
       });
       break;    
     case 'modeling':
@@ -187,8 +181,7 @@ const loadPage: ActionCreator<ThunkResult> =
         });
         break;
     default:
-      page = 'view404';
-      import('./mint-view404');
+      goToPage('home')
   }
 
   dispatch(updatePage(page, subpage));

@@ -6,7 +6,6 @@ import { ExplorerStyles } from './explorer-styles'
 import { SharedStyles } from '../../../styles/shared-styles';
 import { store, RootState } from '../../../app/store';
 
-import { goToPage } from '../../../app/actions';
 
 import { explorerFetch, explorerSearchByVarName } from './actions';
 import explorer from "./reducers";
@@ -95,26 +94,7 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
 
     protected render() {
         return html`
-            <div class="cltrow scenariorow">
-                ${this._selectedUri?
-                html`
-                <wl-button flat inverted @click="${()=> goToPage('models/explore')}">
-                    <wl-icon>arrow_back_ios</wl-icon>
-                </wl-button>
-                <div class="cltmain" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;padding-left:5px;">
-                    <wl-title level="3" style="margin: 0px; cursor: pointer;" 
-                            @click="${()=> goToPage('models/explore')}">Model Catalog</wl-title>
-                </div>
-                `
-                : html`
-                <wl-button flat inverted @click="${()=> goToPage('models')}">
-                    <wl-icon>arrow_back_ios</wl-icon>
-                </wl-button>
-                <div class="cltmain" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;padding-left:5px;">
-                    <wl-title level="3" style="margin: 0px;">Model Catalog</wl-title>
-                </div>
-                `}
-            </div>
+            <br/>
 
             ${this._selectedUri? 
                 //Display only selected model or the search
