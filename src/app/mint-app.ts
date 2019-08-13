@@ -12,6 +12,7 @@ import { LitElement, html, property, PropertyValues, customElement, css } from '
 import { connect } from 'pwa-helpers/connect-mixin';
 import { installRouter } from 'pwa-helpers/router';
 import { updateMetadata } from 'pwa-helpers/metadata';
+import { explorerClearModel } from '../screens/models/model-explore/ui-actions';
 
 // This element is connected to the Redux store.
 import { store, RootState } from './store';
@@ -169,7 +170,9 @@ export class MintApp extends connect(store)(LitElement) {
 
         </div>
         <div slot="right">
-          <a class="title" ><img height="40" src="/images/logo.png"></a>
+          <a class="title" href="/about" @click="${()=>{
+            store.dispatch(explorerClearModel());
+              }}"><img height="40" src="/images/logo.png"></a>
         </div>
       </wl-nav>
 
