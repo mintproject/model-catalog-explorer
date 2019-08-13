@@ -22,13 +22,8 @@ import {
 } from './actions';
 
 import '../screens/modeling/modeling-home';
-import '../screens/datasets/datasets-home';
-import '../screens/regions/regions-home';
-import '../screens/models/models-home';
-import '../screens/analysis/analysis-home';
-import '../screens/variables/variables-home';
-//import '../screens/models/models-explore/model-explore';
 import '../screens/models/model-explore/model-explore';
+import './mint-about';
 
 import { SharedStyles } from '../styles/shared-styles';
 import { showDialog, hideDialog, formElementsComplete } from '../util/ui_functions';
@@ -46,6 +41,9 @@ export class MintApp extends connect(store)(LitElement) {
 
   @property({type:Boolean})
   private _drawerOpened = false;
+
+  @property({type:Boolean})
+  private _infoActive = true;
 
   static get styles() {
     return [
@@ -122,6 +120,28 @@ export class MintApp extends connect(store)(LitElement) {
       .breadcrumbs li:first:after {
         border-left-color: #629b30;
       }
+
+      #info {
+        margin: 0 auto;
+        background: #f0f0f0;
+        width: calc(75% - 40px);
+        border-radius: 1em;
+        padding: 10px 20px;
+      }
+
+      #info wl-icon {
+          float: right;
+          cursor: pointer;
+          color: #B8B8B8;
+      }
+
+      #info wl-icon:hover {
+          color: black;
+      }
+
+      #info > div.cont {
+          padding: 25px 10px 10px 10px;
+      }
       `
     ];
   }
@@ -158,7 +178,22 @@ export class MintApp extends connect(store)(LitElement) {
           <div id="right">
             <div class="card">
               <!-- Main Pages -->
-              <model-explorer class="page fullpage" active></model-explorer>
+              <mint-about class="page fullpage" ?active="${this._page == 'about'}"></mint-about>
+              ${(this._page == 'home' && this._infoActive) ? html`
+              <div id="info">
+                <div> <wl-icon @click="${()=>{this._infoActive = false;}}">clear<wl-icon> </div>
+                <div class="cont"> 
+                    <p>The <b>MINT Model Catalog Explorer</b> is an application for finding and exploring software models 
+                    and metadata available in the MINT Model Catalog.</p>
+                    <p>We are currently adding new models and metadata, so this is work in progress.
+                        Click <a href="/about">here</a> to know more.
+                    </p>
+                    <br/>
+                    <p>We <b>recommend using the Model Explorer in Chrome.</b></p>
+                </div>
+              </div>
+              ` : html``}
+              <model-explorer class="page fullpage" ?active="${this._page != 'about'}"></model-explorer>
             </div>
           </div>
         </div>
