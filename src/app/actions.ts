@@ -97,6 +97,9 @@ const loadPage: ActionCreator<ThunkResult> =
         store.dispatch(explorerClearModel());
       });
       break;    
+    case 'about':
+      import('./mint-about');
+      break;
     case 'modeling':
       if(subpage == 'home') {
         // No parameters. Load Modeling Home (List of Scenarios)

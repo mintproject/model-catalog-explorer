@@ -331,8 +331,8 @@ export class ModelFacetBig extends connect(store)(PageViewElement) {
                     </td>
                 </tr>
                 <tr>
-                    <td class="left text-centered">
-                    <span class="helper"></span>${this._model.logo ? 
+                    <td class="left text-centered" style="padding-top: 1.5em;">
+                        ${this._model.logo ? 
                         html`<img src="${this._model.logo}"/>`
                         : html`<img src="http://www.sclance.com/pngs/image-placeholder-png/image_placeholder_png_698412.png"/>`}
                     </td>
@@ -527,6 +527,7 @@ export class ModelFacetBig extends connect(store)(PageViewElement) {
                 <thead>
                     <th>Name</th>
                     <th>Description</th>
+                    ${this._selectedCalibration? html`<th>Fixed value</th>` : html``}
                     <th>Format</th>
                 </thead>
                 <tbody>
@@ -536,6 +537,9 @@ export class ModelFacetBig extends connect(store)(PageViewElement) {
                             ${io.label}
                         </span></td>
                         <td>${io.desc}</td>
+                        ${(this._selectedCalibration && io.fixedValueURL)? html`<td>
+                            <a target="_blank" href="${io.fixedValueURL}">${io.fixedValueURL.split('/').pop()}</a>
+                        </td>` : html``}
                         <td>${io.format}</td>
                     </tr>`)}
                 </tbody>
@@ -547,6 +551,7 @@ export class ModelFacetBig extends connect(store)(PageViewElement) {
                 <thead>
                     <th>Name</th>
                     <th>Description</th>
+                    ${this._selectedCalibration? html`<th>Fixed value</th>` : html``}
                     <th>Format</th>
                 </thead>
                 <tbody>
@@ -556,6 +561,9 @@ export class ModelFacetBig extends connect(store)(PageViewElement) {
                             ${io.label}
                         </span></td>
                         <td>${io.desc}</td>
+                        ${(this._selectedCalibration && io.fixedValueURL)? html`<td>
+                            <a target="_blank" href="${io.fixedValueURL}">${io.fixedValueURL.split('/').pop()}</a>
+                        </td>` : html``}
                         <td>${io.format}</td>
                     </tr>`)}
                 </tbody>
@@ -588,7 +596,7 @@ export class ModelFacetBig extends connect(store)(PageViewElement) {
             ${(!this._inputs && !this._outputs && !this._parameters)? html`
             <br/>
             <h3 style="margin-left:30px">
-                Sorry! The selected configuration does not have input/output yet.
+                This information has not been specified yet.
             </h3>`
             :html ``}
             `;
@@ -624,7 +632,9 @@ export class ModelFacetBig extends connect(store)(PageViewElement) {
                         </tbody>
                     </table>`
                     : html`
-                    <div class="text-centered"><h4>Sorry! This input does not have variables yet.</h4></div>
+                    <div class="text-centered"><h4>
+                    This information has not been specified yet.
+                    </h4></div>
                     `
                 }`
                 : html`<div class="text-centered"><wl-progress-spinner></wl-progress-spinner></div>`}
@@ -659,7 +669,9 @@ export class ModelFacetBig extends connect(store)(PageViewElement) {
                         </tbody>
                     </table>`
                     : html`
-                    <div class="text-centered"><h4>Sorry! This output does not have variables yet.</h4></div>
+                    <div class="text-centered"><h4>
+                        This information has not been specified yet.
+                    </h4></div>
                     `
                 }`
                 : html`<div class="text-centered"><wl-progress-spinner></wl-progress-spinner></div>`}
@@ -667,7 +679,7 @@ export class ModelFacetBig extends connect(store)(PageViewElement) {
             : html``}
 
             ${(!this._inputs && !this._outputs) ? html`<br/><h3 style="margin-left:30px">
-                Sorry! The selected configuration does not have software compatible inputs/outputs yet.
+                This information has not been specified yet
             </h3>`
             : html``}`;
     }
@@ -695,10 +707,7 @@ export class ModelFacetBig extends connect(store)(PageViewElement) {
                             })}</li>`
                         })}</ul>`: html``
                     }`
-                : html`<br/><h3 style="margin-left:30px">
-                    Sorry! The selected configuration does not have software compatible inputs/outputs yet.
-                </h3>
-                `
+                : html``
             }`
             : html`<br/><h3 style="margin-left:30px">Please select a version and configuration for this model.</h3>`
         }
@@ -719,7 +728,16 @@ export class ModelFacetBig extends connect(store)(PageViewElement) {
                 </tr>`)}
             </tbody>
         </table>
-        `:html``}`
+        `:html``}
+        ${(!this._compModels && (!this._compInput || this._compInput.length == 0) && (!this._compOutput || this._compOutput.length == 0))?
+            html`
+                <br/><h3 style="margin-left:30px">
+                    This information has not been specified yet.
+                </h3>
+            `
+            :html``
+        }
+        `
     }
 
     _renderMetadata (title: string, metadata:any) {
@@ -1019,7 +1037,7 @@ export class ModelFacetBig extends connect(store)(PageViewElement) {
                                 console.log('SET NEW CALIBRATION')
                                 store.dispatch(explorerFetchMetadata(this._selectedCalibration.uri));
 
-                                //store.dispatch(explorerFetchIO(this._selectedCalibration.uri));
+                                store.dispatch(explorerFetchIO(this._selectedCalibration.uri));
                                 store.dispatch(explorerFetchParameters(this._selectedCalibration.uri));
 
                             }
@@ -1078,7 +1096,8 @@ export class ModelFacetBig extends connect(store)(PageViewElement) {
 
                     //Set Inputs
                     if (state.explorer.inputs) {
-                        let selectedUri : string = this._selectedConfig.uri;
+                        let selectedUri : string = this._selectedCalibration ? 
+                                this._selectedCalibration.uri : this._selectedConfig.uri;
                         if (state.explorer.inputs[selectedUri] && state.explorer.inputs[selectedUri].length > 0
                             && this._inputs != state.explorer.inputs[selectedUri]) {
                             this._inputs = state.explorer.inputs[selectedUri];
@@ -1087,7 +1106,8 @@ export class ModelFacetBig extends connect(store)(PageViewElement) {
 
                     //Set Outputs
                     if (state.explorer.outputs) {
-                        let selectedUri : string = this._selectedConfig.uri;
+                        let selectedUri : string = this._selectedCalibration ? 
+                                this._selectedCalibration.uri : this._selectedConfig.uri;
                         if (state.explorer.outputs[selectedUri] && state.explorer.outputs[selectedUri].length > 0
                             && this._outputs != state.explorer.outputs[selectedUri]) {
                             this._outputs = state.explorer.outputs[selectedUri];
