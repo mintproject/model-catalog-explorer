@@ -12,7 +12,6 @@ import { LitElement, html, property, PropertyValues, customElement, css } from '
 import { connect } from 'pwa-helpers/connect-mixin';
 import { installRouter } from 'pwa-helpers/router';
 import { updateMetadata } from 'pwa-helpers/metadata';
-import { explorerClearModel } from '../screens/models/model-explore/ui-actions';
 
 // This element is connected to the Redux store.
 import { store, RootState } from './store';
@@ -165,14 +164,13 @@ export class MintApp extends connect(store)(LitElement) {
                     Model catalog
                   </div>
               </li>
-              ${this._selectedModel? html`<li class="active">${this._selectedModel.split('/').pop()}</li>` : html``}
+              ${(this._selectedModel && !(this._page == 'home' || this._page == 'about'))?
+                    html`<li class="active">${this._selectedModel.split('/').pop()}</li>` : html``}
             </ul>
 
         </div>
         <div slot="right">
-          <a class="title" href="/about" @click="${()=>{
-            store.dispatch(explorerClearModel());
-              }}"><img height="40" src="/images/logo.png"></a>
+          <a class="title" href="/about"><img height="40" src="/images/logo.png"></a>
         </div>
       </wl-nav>
 
@@ -186,17 +184,17 @@ export class MintApp extends connect(store)(LitElement) {
               <div id="info">
                 <div> <wl-icon @click="${()=>{this._infoActive = false;}}">clear<wl-icon> </div>
                 <div class="cont"> 
-                    <p>The <b>MINT Model Catalog Explorer</b> is an application for finding and exploring software models 
+                    <p>The <b>MINT Model Explorer</b> is an application for finding and exploring software models 
                     and metadata available in the MINT Model Catalog.</p>
                     <p>We are currently adding new models and metadata, so this is work in progress.
                         Click <a href="/about">here</a> to know more.
                     </p>
                     <br/>
-                    <p>We <b>recommend using the Model Explorer in Chrome.</b></p>
+                    <p>We <b>recommend using the MINT Model Explorer in Chrome.</b></p>
                 </div>
               </div>
               ` : html``}
-              <model-explorer class="page fullpage" ?active="${this._page != 'about'}"></model-explorer>
+              <model-explorer class="page fullpage" style="height:100%;" ?active="${this._page != 'about'}"></model-explorer>
             </div>
           </div>
         </div>

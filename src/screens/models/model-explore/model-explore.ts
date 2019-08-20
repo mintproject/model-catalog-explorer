@@ -57,6 +57,12 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
     static get styles() {
         return [SharedStyles, ExplorerStyles,
             css `
+            :host {
+                display: block;
+                height: 100%;
+                overflow: hidden;
+            }
+
             .cltrow {
                 padding-bottom: 1em;
             }
@@ -73,8 +79,8 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
             #model-search-results {
                 margin: 0 auto;
                 overflow: scroll;
-                height: 100%;
-                width: 75%;
+                height: calc(100% - 85px);
+                width: 100%;
             }
 
             #model-search-form {
@@ -101,17 +107,20 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
             #model-search-form > wl-textfield > div[slot="after"] > wl-icon {
                 cursor: pointer;
             }
+
+            model-facet {
+                margin: 0 auto;
+                width: 75%;
+            }
             `
         ];
     }
 
     protected render() {
         return html`
-            <br/>
-
             ${this._selectedUri? 
                 //Display only selected model or the search
-                html`<model-facet-big style="width:75%;"></model-facet-big>`
+                html`<model-facet-big></model-facet-big>`
                 : this._renderSearch()
             }
         `;
@@ -156,6 +165,10 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
                     `
                 )}
             </div>
+            <p style="text-align: right; margin: 5px 10px 0px 0px; font-style: oblique;">
+                For corrections or additions to the information in the MINT Model Explorer,
+                please contact us at <a href="mailto:mint-project@googlegroups.com">mint-project@googlegroups.com</a>
+            </p>
             ` : html``}
         `
     }

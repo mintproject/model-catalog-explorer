@@ -14,8 +14,6 @@ import { PageViewElement } from '../components/page-view-element';
 // These are the shared styles needed by this element.
 import { SharedStyles } from '../styles/shared-styles';
 
-//import "weightless/textfield";
-
 @customElement('mint-about')
 export class MintAbout extends PageViewElement {
   static get styles() {
@@ -32,6 +30,10 @@ export class MintAbout extends PageViewElement {
             margin:auto;
             border: 1px solid black;
             margin-bottom: 1em;
+        }
+
+        p {
+            text-align:justify;
         }
         `
     ];
@@ -71,10 +73,17 @@ export class MintAbout extends PageViewElement {
                 </p>
 
                 <br/>
-                <p style="text-align:right;">
-                    <b>Contributors:</b> Hernán Vargas, Daniel Garijo, Deborah Khider and Yolanda Gil
+                <p>
+                    The development of the MINT Model Explorer was led by Daniel Garijo, and implemented by Hernán
+                    Vargas, Varun Ratnakar, Dhruv Pattel, Shreyas Kolpe, Rohit Mayura and Yash Dholakia.
+                    Other contributors include Deborah Khider, Yolanda Gil, Scott Peckham, Chris Duffy, Kelly Cobourn,
+                    Suzanne Pierce, Zeya Zhang, Lele Shu and Mary Hill.
                 </p>
             </div>
+            <p style="text-align: right; padding: 15px 10px; font-style: oblique;">
+                For corrections or additions to the information in the MINT Model Explorer,
+                please contact us at <a href="mailto:mint-project@googlegroups.com">mint-project@googlegroups.com</a>
+            </p>
       </section>
     `
   }
