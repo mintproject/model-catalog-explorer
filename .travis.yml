@@ -1,4 +1,6 @@
 language: generic
+addons:
+  ssh_known_hosts: mint.isi.edu
 env:
   matrix:
   - DOCKER_COMPOSE_VERSION=1.23.2
