@@ -11,8 +11,10 @@ import "./mint-runs";
 import "./mint-results";
 import "./mint-visualize";
 
-import { getPathwayVariablesStatus, TASK_NOT_STARTED, getPathwayModelsStatus, getPathwayDatasetsStatus, 
-    getPathwayRunsStatus, getPathwayResultsStatus, TASK_DONE, TASK_PARTLY_DONE, getUISelectedSubgoal, getPathwayParametersStatus } from "../../../util/state_functions";
+import { getPathwayVariablesStatus, TASK_NOT_STARTED, getPathwayModelsStatus, 
+    getPathwayDatasetsStatus, getPathwayRunsStatus, getPathwayResultsStatus, 
+    TASK_DONE, TASK_PARTLY_DONE, 
+    getUISelectedSubgoal, getPathwayParametersStatus } from "../../../util/state_functions";
 import { SubGoal } from "../reducers";
 import { BASE_HREF } from "../../../app/actions";
 import { MintPathwayPage } from "./mint-pathway-page";
@@ -62,7 +64,7 @@ export class MintPathway extends connect(store)(MintPathwayPage) {
             border: 1px solid #F0F0F0;
             left: 0px;
             right: 0px;
-            height: calc(100% - 62px);
+            height: calc(100% - 100px);
             overflow: auto;
             background: #FFFFFF;
         }
@@ -194,9 +196,6 @@ export class MintPathway extends connect(store)(MintPathwayPage) {
         }
 
         return html`
-            <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-              <wl-title level="4">${this.subgoal ? this.subgoal.name : ""}</wl-title>
-            </div>
             ${this._renderProgressBar()}
 
             <div class="card2">
@@ -210,6 +209,7 @@ export class MintPathway extends connect(store)(MintPathwayPage) {
                 </mint-models>
                 <mint-datasets class="page" 
                     .scenario="${this.scenario}"
+                    .subgoal="${this.subgoal}"
                     ?active="${this._currentMode == 'datasets'}">
                 </mint-datasets>
                 <mint-parameters class="page" 
@@ -238,6 +238,9 @@ export class MintPathway extends connect(store)(MintPathwayPage) {
             // If pathway changed
             console.log("mint-pathway: Pathway changed !");
             this._selectMode(this._getNextMode());
+            
+            //FIXME: Add this back later
+            //checkPathwayEnsembleStatus(this.scenario, this.pathway, this.prefs);
         }
 
         this.subgoal = getUISelectedSubgoal(state);

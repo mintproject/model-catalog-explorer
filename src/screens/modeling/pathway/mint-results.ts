@@ -11,6 +11,7 @@ import { showNotification } from "../../../util/ui_functions";
 import { selectPathwaySection } from "../../../app/ui-actions";
 import { renderLastUpdateText } from "../../../util/ui_renders";
 import { MintPathwayPage } from "./mint-pathway-page";
+import { Model } from "screens/models/reducers";
 
 @customElement('mint-results')
 export class MintResults extends connect(store)(MintPathwayPage) {
@@ -88,12 +89,17 @@ export class MintResults extends connect(store)(MintPathwayPage) {
                     ${!readmode ? 
                         html `
                         <p>
-                            These results have been produced by running these models with the inputs. You can select the results that you would like to publish.
+                            These results have been produced by running these models with the input combinations indicated.
                         </p>
                         ` : 
                         html``
                     }
                     <table class="pure-table pure-table-striped" id="results_table">
+                        <colgroup>
+                            <col span="1" style="width: 35%;">
+                            <col span="1" style="width: 65%;">
+                            <col span="1" style="width: 176px;">
+                        </colgroup>
                         <thead>
                             <tr>
                                 ${!readmode ? html`<th></th>`: html``}
@@ -120,7 +126,7 @@ export class MintResults extends connect(store)(MintPathwayPage) {
                                         html ``
                                     }
                                     <td>
-                                        <a href="${BASE_HREF}models/explore/${model.id}">${model.name}</a>
+                                        <a href="${this._getModelURL(model)}">${model.name}</a>
                                     </td>
                                     <td>
                                     ${Object.keys(ensemble.bindings).map((inputid) => {
@@ -138,16 +144,12 @@ export class MintResults extends connect(store)(MintPathwayPage) {
                                     })}
                                     </td>
                                     <td>
-                                    ${ensemble.results.map((result) => {
-                                        if(result.match(/^http:/)) {
-                                            var fname = result.replace(/.*\//, '');
-                                            return html`
-                                                <a href="${result}">${fname}</a>
-                                            `
-                                        }
+                                    ${ensemble.results.map((result: any) => {
+                                        var fname = result.id.replace(/.+#/, '');
+                                        var furl = this._getDatasetURL(result);
                                         return html`
-                                            <a href="${BASE_HREF}datasets/browse/${result}">${result}</a> <br />
-                                        `;
+                                            <a href="${furl}">${fname}</a> <br />
+                                        `
                                     })}
                                     </td>
                                 </tr>
@@ -196,8 +198,24 @@ export class MintResults extends connect(store)(MintPathwayPage) {
         `;
     }
 
+    _getModelURL (model:Model) {
+        return this._regionid + '/models/explore/' + model.original_model + '/'
+               + model.model_version + '/' + model.model_configuration + '/'
+               + model.localname;
+    }
+
+    _getDatasetURL (result: any) {
+        let config = this.prefs;
+        let suffix = "/users/" + config.wings.username + "/" + config.wings.domain;
+        var purl = config.wings.server + suffix
+        var expurl = config.wings.export_url + "/export" + suffix;
+        let dsid = expurl + "/data/library.owl#" + result.location.replace(/.+\//, '');
+        return purl + "/data/fetch?data_id=" + escape(dsid);
+    }
+
     stateChanged(state: RootState) {
         super.setUser(state);
+        super.setRegionId(state);
         super.setPathway(state);
     }
 

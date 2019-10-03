@@ -6,9 +6,12 @@ import { SharedStyles } from "../../../styles/shared-styles";
 import { BASE_HREF } from "../../../app/actions";
 
 import "weightless/progress-bar";
-import { runPathwayExecutableEnsembles } from "../../../util/state_functions";
+import { runPathwayExecutableEnsembles, checkPathwayEnsembleStatus } from "../../../util/state_functions";
 import { selectPathwaySection } from "../../../app/ui-actions";
 import { MintPathwayPage } from "./mint-pathway-page";
+import { showNotification } from "util/ui_functions";
+import { renderNotifications } from "util/ui_renders";
+import { Model } from "screens/models/reducers";
 
 @customElement('mint-runs')
 export class MintRuns extends connect(store)(MintPathwayPage) {
@@ -30,7 +33,8 @@ export class MintRuns extends connect(store)(MintPathwayPage) {
         if(!this.pathway.executable_ensembles || !this.pathway.executable_ensembles.length) {
             return html `
             <p>
-                This step is for monitoring model runs. You can view results of these runs in the next step
+                This step is for monitoring model runs. You can view results of these runs in the next step.  You can
+                also see if runs failed, and look into the reasons so the model can be used properly.
             </p>
             Please setup and run some models first
             `
@@ -81,6 +85,12 @@ export class MintRuns extends connect(store)(MintPathwayPage) {
                 <li>
                     <wl-title level="4">Model Runs executed</wl-title>
                     <table class="pure-table pure-table-striped">
+                        <colgroup>
+                            <col span="1" style="width: 35%;">
+                            <col span="1" style="width: 65%;">
+                            <col span="1" style="width: 176px;">
+                        </colgroup>
+
                         <thead>
                             <tr>
                                 <th>Model</th>
@@ -94,7 +104,7 @@ export class MintRuns extends connect(store)(MintPathwayPage) {
                                 let model = this.pathway.models![ensemble.modelid];
                                 return html`
                                 <tr>
-                                    <td><a href="${BASE_HREF}models/explore/${model.id}">${model.name}</a></td>
+                                    <td><a href="${this._getModelURL(model)}">${model.name}</a></td>
                                     <td>
                                     ${Object.keys(ensemble.bindings).map((inputid) => {
                                         let inputname = inputid.substr(inputid.lastIndexOf('/') + 1);
@@ -110,7 +120,10 @@ export class MintRuns extends connect(store)(MintPathwayPage) {
                                         }
                                     })}
                                     </td>
-                                    <td><wl-progress-bar mode="determinate" value="${ensemble.run_progress || 0}"></wl-progress-bar></td>
+                                    <td>
+                                        <wl-progress-bar mode="determinate" class="${ensemble.status}"
+                                            value="${ensemble.status == "FAILURE" ? 100 : (ensemble.run_progress || 0)}"></wl-progress-bar>
+                                    </td>
                                 </tr>
                                 `;
                             })}
@@ -142,7 +155,7 @@ export class MintRuns extends connect(store)(MintPathwayPage) {
                                     return html`
                                     <tr>
                                         <td><input class="checkbox" type="checkbox" data-index="${index}"></input></td>                    
-                                        <td><a href="${BASE_HREF}models/explore/${model.id}">${model.name}</a></td>
+                                        <td><a href="${this._getModelURL(model)}">${model.name}</a></td>
                                         <td>
                                         ${Object.keys(ensemble.bindings).map((inputid) => {
                                             let inputname = inputid.substr(inputid.lastIndexOf('/') + 1);
@@ -172,7 +185,16 @@ export class MintRuns extends connect(store)(MintPathwayPage) {
                 }
             </ul>
         </div>
+
+        ${renderNotifications()}
+        
         `;
+    }
+
+    _getModelURL (model:Model) {
+        return this._regionid + '/models/explore/' + model.original_model + '/'
+               + model.model_version + '/' + model.model_configuration + '/'
+               + model.localname;
     }
 
     _runSelectedEnsembles() {
@@ -186,12 +208,15 @@ export class MintRuns extends connect(store)(MintPathwayPage) {
             }
         });
 
-        runPathwayExecutableEnsembles(this.scenario, this.pathway, selected_indices); 
-        // FIXME: Should use ensemble ids instead of indices
+        runPathwayExecutableEnsembles(this.scenario, this.pathway, this.prefs, selected_indices); 
+        
+        showNotification("runNotification", this.shadowRoot!);
     }
 
     stateChanged(state: RootState) {
         super.setUser(state);
+        super.setRegionId(state);
         super.setPathway(state);
+        checkPathwayEnsembleStatus(this.scenario, this.pathway, this.prefs);
     }
 }

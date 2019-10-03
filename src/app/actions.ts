@@ -14,10 +14,12 @@ import { RootState, store } from './store';
 import { queryDatasetDetail } from '../screens/datasets/actions';
 import { queryModelDetail } from '../screens/models/actions';
 import { explorerClearModel, explorerSetModel, explorerSetVersion, explorerSetConfig,
-         explorerSetCalibration } from '../screens/models/model-explore/ui-actions';
-import { selectScenario, selectPathway, selectSubgoal, selectPathwaySection } from './ui-actions';
+         explorerSetCalibration, explorerSetMode } from '../screens/models/model-explore/ui-actions';
+import { selectScenario, selectPathway, selectSubgoal, selectPathwaySection, selectTopRegion, selectThread } from './ui-actions';
 import { auth } from '../config/firebase';
 import { User } from 'firebase';
+import { UserPreferences } from './reducers';
+import { SAMPLE_USER_PREFERENCES, SAMPLE_USER } from 'offline_data/sample_user';
 
 export const BASE_HREF = document.getElementsByTagName("base")[0].href.replace(/^http(s)?:\/\/.*?\//, "/");
 
@@ -25,11 +27,15 @@ export const UPDATE_PAGE = 'UPDATE_PAGE';
 export const LOGIN = 'LOGIN';
 export const LOGOUT = 'LOGOUT';
 export const FETCH_USER = 'FETCH_USER';
+export const FETCH_USER_PREFERENCES = 'FETCH_USER_PREFERENCES';
 
 export interface AppActionUpdatePage extends Action<'UPDATE_PAGE'> { regionid?: string, page?: string, subpage?:string };
 export interface AppActionFetchUser extends Action<'FETCH_USER'> { user?: User | null };
+export interface AppActionFetchUserPreferences extends Action<'FETCH_USER_PREFERENCES'> { 
+  prefs?: UserPreferences | null 
+};
 
-export type AppAction = AppActionUpdatePage | AppActionFetchUser ;
+export type AppAction = AppActionUpdatePage | AppActionFetchUser | AppActionFetchUserPreferences;
 
 type ThunkResult = ThunkAction<void, RootState, undefined, AppAction>;
 
@@ -37,6 +43,14 @@ export const OFFLINE_DEMO_MODE = false;
 
 type UserThunkResult = ThunkAction<void, RootState, undefined, AppActionFetchUser>;
 export const fetchUser: ActionCreator<UserThunkResult> = () => (dispatch) => {
+  if(OFFLINE_DEMO_MODE) {
+    dispatch({
+      type: FETCH_USER,
+      user: SAMPLE_USER as User
+    });
+    return;
+  }
+  
   //console.log("Subscribing to user authentication updates");
   auth.onAuthStateChanged(user => {
     if (user) {
@@ -51,6 +65,17 @@ export const fetchUser: ActionCreator<UserThunkResult> = () => (dispatch) => {
       });
     }
   });
+};
+
+type UserPrefsThunkResult = ThunkAction<void, RootState, undefined, AppActionFetchUserPreferences>;
+export const fetchUserPreferences: ActionCreator<UserPrefsThunkResult> = () => (dispatch) => {
+  //if(OFFLINE_DEMO_MODE) {
+    dispatch({
+      type: FETCH_USER_PREFERENCES,
+      prefs: SAMPLE_USER_PREFERENCES
+    });
+    return;
+  //}
 };
 
 export const signIn = (email: string, password: string) => {
@@ -91,6 +116,7 @@ export const navigate: ActionCreator<ThunkResult> = (path: string) => (dispatch)
 
 const loadPage: ActionCreator<ThunkResult> = 
     (page: string, subpage: string, params: Array<String>) => (dispatch) => {
+
   switch(page) {
     case 'home':
       import('../screens/home/app-home').then((_module) => {
@@ -100,32 +126,6 @@ const loadPage: ActionCreator<ThunkResult> =
     case 'about':
       import('./mint-about');
       break;
-    case 'modeling':
-      if(subpage == 'home') {
-        // No parameters. Load Modeling Home (List of Scenarios)
-        import('../screens/modeling/modeling-home').then((_module) => {
-          store.dispatch(selectScenario(null));
-          store.dispatch(selectPathway(null));
-        });
-      }
-      else if(subpage == "scenario") {
-        // Scenario passed in. Load scenario
-        import('../screens/modeling/mint-scenario').then((_module) => {
-          if(params.length > 0) {
-            store.dispatch(selectScenario(params[0]));
-            if(params.length > 1) {
-              store.dispatch(selectSubgoal(params[1]));
-              if(params.length > 2) {
-                store.dispatch(selectPathway(params[2]));
-                if(params.length > 3) {
-                  store.dispatch(selectPathwaySection(params[3]));
-                }
-              }
-            }
-          }
-        });   
-      }
-      break;
     case 'models':
         if (subpage == 'home') {
             // No parameters. Load Model Home
@@ -134,8 +134,9 @@ const loadPage: ActionCreator<ThunkResult> =
                     store.dispatch(queryModelDetail(params[0]));
                 }
             });
-        } else if (subpage == "explore") {
+        } else if (subpage == 'explore') {
             import('../screens/models/model-explore/model-explore').then((_module) => {
+                store.dispatch(explorerSetMode('view'));
                 if(params.length > 0) {
                     store.dispatch(explorerSetModel(params[0]));
                     if (params.length > 1) {
@@ -153,38 +154,9 @@ const loadPage: ActionCreator<ThunkResult> =
             });
         }
         break;
-    case 'regions':
-        import('../screens/regions/regions-home').then((_module) => {
-          if(params.length > 0) {
-            //store.dispatch(queryRegionDetail(params[0]));
-          }
-        });
-        break;
-    case 'analysis':
-        import('../screens/analysis/analysis-home').then((_module) => {
-          if(params.length > 0) {
-            //store.dispatch(queryRegionDetail(params[0]));
-          }
-        });
-        break;
-    case 'datasets':
-        import('../screens/datasets/datasets-home').then((_module) => {
-          if(params.length > 0) {
-            if(subpage == "browse") {
-              store.dispatch(queryDatasetDetail(params[0]));
-            }
-          }
-        });
-        break;
-    case 'variables':
-        import('../screens/variables/variables-home').then((_module) => {
-          if(params.length > 0) {
-            //store.dispatch(queryVariableDetail(params[0]));
-          }
-        });
-        break;
     default:
       goToPage('home')
+      break;
   }
 
   dispatch(updatePage(page, subpage));
