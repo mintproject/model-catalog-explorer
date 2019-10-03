@@ -3,17 +3,20 @@ import { connect } from "pwa-helpers/connect-mixin";
 import { store, RootState } from "../../../app/store";
 import datasets, { Dataset, ModelDatasets } from "../../datasets/reducers";
 
-import { DatasetMap, DataEnsembleMap, ModelEnsembleMap, ComparisonFeature, StepUpdateInformation } from "../reducers";
+import { DatasetMap, DataEnsembleMap, ModelEnsembleMap, ComparisonFeature, StepUpdateInformation, SubGoal } from "../reducers";
 import { SharedStyles } from "../../../styles/shared-styles";
 import { Model } from "../../models/reducers";
 import { queryDatasetsByVariables } from "../../datasets/actions";
 import { updatePathway } from "../actions";
-import { createPathwayExecutableEnsembles, removeDatasetFromPathway, matchVariables, getPathwayDatasetsStatus, TASK_DONE } from "../../../util/state_functions";
+import { createPathwayExecutableEnsembles, removeDatasetFromPathway, matchVariables, getPathwayDatasetsStatus, TASK_DONE, getUISelectedSubgoal } from "../../../util/state_functions";
 import { renderNotifications, renderLastUpdateText } from "../../../util/ui_renders";
 import { showNotification, showDialog } from "../../../util/ui_functions";
 import { selectPathwaySection } from "../../../app/ui-actions";
 import { MintPathwayPage } from "./mint-pathway-page";
 import { IdMap } from "../../../app/reducers";
+import { fromTimeStampToDateString } from "util/date-utils";
+
+import "weightless/snackbar";
 
 store.addReducers({
     datasets
@@ -33,6 +36,9 @@ export class MintDatasets extends connect(store)(MintPathwayPage) {
 
     @property({type: Array})
     private _datasetsToCompare: Dataset[] = [];
+
+    @property({type: Object})
+    subgoal: SubGoal;
 
     private _comparisonFeatures: Array<ComparisonFeature> = [
         {
@@ -122,7 +128,7 @@ export class MintDatasets extends connect(store)(MintPathwayPage) {
                 <li>
                     <wl-title level="4">Datasets for ${model.name}</wl-title>
                     ${input_files.length == 0 ? 
-                    html `<ul><li>No datasets needed</li></ul>`
+                    html `<ul><li>No additional datasets were needed for this model.</li></ul>`
                     :
                     html`
                     <ul>
@@ -139,7 +145,7 @@ export class MintDatasets extends connect(store)(MintPathwayPage) {
                                         let dataset = this.pathway.datasets![binding];
                                         return html`
                                         <li>
-                                        <a href="datasets/browse/${dataset.id}">${dataset.name}</a>
+                                        <a href="datasets/browse/${dataset.id}">${dataset.name}</a> (${(dataset.resources || []).length} resources)
                                         </li>
                                         `;
                                     })}
@@ -149,57 +155,63 @@ export class MintDatasets extends connect(store)(MintPathwayPage) {
                         }
                         else {
                             let queriedInputDatasetStatuses = (this._queriedDatasets[modelid] || {})[input.id!];
-                            let loading = queriedInputDatasetStatuses.loading;
-                            let queriedInputDatasets = queriedInputDatasetStatuses.datasets;
-                            return html `
-                            <li>
-                                Select an input dataset for <b>${input.name}</b>. (You can select more than one dataset if you want several runs). 
-                                Datasets matching the driving variable specied (if any) are in <b>bold</b>.
-                                <p />
-                                ${loading ? 
-                                html`<wl-progress-bar></wl-progress-bar>`
-                                :
-                                html`
-                                <table class="pure-table pure-table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th></th>
-                                            <th><b>Dataset</b></th>
-                                            <th>Categories</th>
-                                            <th>Region</th>
-                                            <th>Time Period</th>
-                                            <th>Source</th>
-
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${(queriedInputDatasets || []).map((dataset:Dataset) => {
-                                            let matched = matchVariables(this.pathway.driving_variables, dataset.variables, false); // Partial match
-                                            return html`
+                            if(queriedInputDatasetStatuses) {
+                                let loading = queriedInputDatasetStatuses.loading;
+                                let queriedInputDatasets = queriedInputDatasetStatuses.datasets;
+                                return html `
+                                <li>
+                                    Select an input dataset for <b>${input.name}</b>. (You can select more than one dataset if you want several runs). 
+                                    Datasets matching the driving variable specied (if any) are in <b>bold</b>.
+                                    <p />
+                                    ${loading ? 
+                                    html`<wl-progress-bar></wl-progress-bar>`
+                                    :
+                                    html`
+                                    <table class="pure-table pure-table-striped">
+                                        <thead>
                                             <tr>
-                                                <td><input class="${this._valid(modelid)}_${this._valid(input.id!)}_checkbox" 
-                                                    type="checkbox" data-datasetid="${dataset.id}"
-                                                    ?checked="${(bindings || []).indexOf(dataset.id!) >= 0}"></input></td>
-                                                <td class="${matched ? 'matched': ''}">
-                                                    <a href="datasets/browse/${dataset.id}">${dataset.name}</a>
-                                                </td>
-                                                <td>${dataset.categories!.join(", ")}</td>
-                                                <td>${dataset.region}</td>
-                                                <td>${dataset.time_period}</td>
-                                                <td><a href="'${dataset.source.url}'">${dataset.source.name}</a></td>
+                                                <th></th>
+                                                <th><b>Dataset</b></th>
+                                                <th>Categories</th>
+                                                <th>Region</th>
+                                                <th>Time Period</th>
+                                                <th>Source</th>
+
                                             </tr>
-                                            `;
-                                        })}
-                                    </tbody>
-                                </table>
-                                <div class="footer">
-                                    <wl-button type="button" flat inverted outlined 
-                                        @click="${() => this._compareDatasets(modelid, input.id!)}">Compare Selected Data</wl-button>
-                                    <div style="flex-grow: 1">&nbsp;</div>
-                                </div>
-                                `}
-                            </li>
-                            `;
+                                        </thead>
+                                        <tbody>
+                                            ${(queriedInputDatasets || []).map((dataset:Dataset) => {
+                                                let matched = matchVariables(this.pathway.driving_variables, dataset.variables, false); // Partial match
+                                                return html`
+                                                <tr>
+                                                    <td><input class="${this._valid(modelid)}_${this._valid(input.id!)}_checkbox" 
+                                                        type="checkbox" data-datasetid="${dataset.id}"
+                                                        ?checked="${(bindings || []).indexOf(dataset.id!) >= 0}"></input></td>
+                                                    <td class="${matched ? 'matched': ''}">
+                                                        <a href="datasets/browse/${dataset.id}">${dataset.name}</a>
+                                                        (${dataset.resources.length} resources)
+                                                    </td>
+                                                    <td>${(dataset.categories || []).join(", ")}</td>
+                                                    <td>${dataset.region}</td>
+                                                    <td>
+                                                        ${fromTimeStampToDateString(dataset.time_period.start_date)} to 
+                                                        ${fromTimeStampToDateString(dataset.time_period.end_date)}
+                                                    </td>
+                                                    <td><a href="${dataset.source.url}">${dataset.source.name}</a></td>
+                                                </tr>
+                                                `;
+                                            })}
+                                        </tbody>
+                                    </table>
+                                    <div class="footer">
+                                        <wl-button type="button" flat inverted outlined 
+                                            @click="${() => this._compareDatasets(modelid, input.id!)}">Compare Selected Data</wl-button>
+                                        <div style="flex-grow: 1">&nbsp;</div>
+                                    </div>
+                                    `}
+                                </li>
+                                `;
+                            }
                         }
                     })}
                     </ul>
@@ -394,6 +406,7 @@ export class MintDatasets extends connect(store)(MintPathwayPage) {
         };    
 
         // Update pathway itself
+        //console.log(this.pathway);
         updatePathway(this.scenario, this.pathway);
         showNotification("saveNotification", this.shadowRoot!);
     }
@@ -412,6 +425,8 @@ export class MintDatasets extends connect(store)(MintPathwayPage) {
 
     queryDataCatalog() {
         //console.log("Querying data catalog again");
+        let dates = this.pathway.dates || this.subgoal.dates || this.scenario.dates;
+
         if(this._models) {
             if(!this._queriedDatasets) {
                 this._queriedDatasets = {} as ModelDatasets;
@@ -426,7 +441,8 @@ export class MintDatasets extends connect(store)(MintPathwayPage) {
                             !this.pathway.model_ensembles![modelid][input.id!] ||
                             this._editMode) {
                         //console.log("Querying datasets for model: " + modelid+", input: " + input.id);
-                        store.dispatch(queryDatasetsByVariables(modelid, input.id, input.variables));
+                        store.dispatch(queryDatasetsByVariables(
+                            modelid, input.id, input.variables, dates));
                     } else {
                         this._queriedDatasets[modelid][input.id!] = {
                             loading: false,
@@ -454,6 +470,7 @@ export class MintDatasets extends connect(store)(MintPathwayPage) {
             if(this.pathway.id != pathwayid) 
                 this._resetEditMode();
         }
+
         if(state.datasets) {
             //console.log(state.datasets.datasets);
             this._queriedDatasets = state.datasets.datasets;

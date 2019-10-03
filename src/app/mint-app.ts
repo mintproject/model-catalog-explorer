@@ -18,8 +18,9 @@ import { store, RootState } from './store';
 
 // These are the actions needed by this element.
 import {
-  navigate, fetchUser, signIn, goToPage,
+  navigate, fetchUser, signOut, signIn, goToPage, fetchUserPreferences,
 } from './actions';
+import { listTopRegions } from '../screens/regions/actions';
 
 import '../screens/modeling/modeling-home';
 import '../screens/models/model-explore/model-explore';
@@ -44,6 +45,8 @@ export class MintApp extends connect(store)(LitElement) {
 
   @property({type:Boolean})
   private _infoActive = true;
+
+  _once = false;
 
   static get styles() {
     return [
@@ -142,25 +145,36 @@ export class MintApp extends connect(store)(LitElement) {
       #info > div.cont {
           padding: 25px 10px 10px 10px;
       }
-      `
+
+    #back-button {
+        padding: 4px 4px 4px 10px;
+        border-radius: 0;
+        background: rgb(240, 240, 240);
+    }   
+
+    #back-button:hover {
+        background-color: rgb(224, 224, 224);
+    }`
     ];
   }
 
   protected render() {
     // Anything that's related to rendering should be done in here.
     return html`
-      <!-- Overall app layout -->
+    <!-- Overall app layout -->
 
     <div class="appframe">
       <!-- Navigation Bar -->
       <wl-nav>
         <div slot="title">
+            <wl-button id="back-button" flat inverted @click="${()=>goToPage('home')}" ?disabled="${this._page === 'home'}">
+                <wl-icon>arrow_back_ios</wl-icon>
+            </wl-button>
         
             <ul class="breadcrumbs">
               <li @click="${()=>goToPage('home')}"
                   class=${(this._page == 'home' ? 'active' : '')}>
                   <div style="vertical-align:middle">
-                    ▶
                     Model catalog
                   </div>
               </li>
@@ -169,13 +183,13 @@ export class MintApp extends connect(store)(LitElement) {
             </ul>
 
         </div>
-        <div slot="right">
-          <a class="title" href="/about"><img height="40" src="/images/logo.png"></a>
-        </div>
+        <wl-button style="padding: 0px 5px;" flat inverted slot="right" @click="${()=>goToPage('about')}">
+          About
+          <img style="margin-left: 6px;" height="40" src="/images/logo.png">
+        </wl-button>
       </wl-nav>
 
         <div class="sectionframe">
-
           <div id="right">
             <div class="card">
               <!-- Main Pages -->
@@ -257,7 +271,11 @@ export class MintApp extends connect(store)(LitElement) {
 
   protected firstUpdated() {
     installRouter((location) => store.dispatch(navigate(decodeURIComponent(location.pathname))));
+    /*store.dispatch(fetchModels());
+    store.dispatch(fetchVersionsAndConfigs());
     store.dispatch(fetchUser());
+    store.dispatch(fetchUserPreferences());
+    store.dispatch(listTopRegions());*/
   }
 
   protected updated(changedProps: PropertyValues) {
@@ -277,5 +295,8 @@ export class MintApp extends connect(store)(LitElement) {
     if (state.explorerUI && state.explorerUI.selectedModel != this._selectedModel) {
         this._selectedModel = state.explorerUI.selectedModel;
     }
+    /*if(regionid) {
+      this._selectedRegion = regionid.replace(/_/g, ' ').toUpperCase();
+    }*/
   }
 }

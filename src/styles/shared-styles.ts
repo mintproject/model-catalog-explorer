@@ -75,7 +75,8 @@ export const SharedStyles = css`
     color: #06436c;
   }
   wl-title[level="4"] {
-    color: #0f7acf
+    color: #06436c;
+    font-size: 14px;
   }
 
   wl-list-item.active {
@@ -97,6 +98,9 @@ export const SharedStyles = css`
     --progress-bar-color: #629b30;
     width: 150px;
   }  
+  wl-progress-bar.FAILURE {
+    --progress-bar-color: red;
+  }
 
   wl-tooltip {
     font-size: 12px;
@@ -281,7 +285,7 @@ export const SharedStyles = css`
   }
 
   .page.fullpage[active] {
-    height: calc(100% - 50px);
+    height: 100%;
     left: 0px;
     right: 0px;
   }
@@ -343,7 +347,7 @@ export const SharedStyles = css`
     color: #666;
   }
   fieldset.notes div.notepage {
-    white-space: pre;
+    white-space: pre-wrap;
     border: 0px;
   }
 
@@ -370,7 +374,7 @@ export const SharedStyles = css`
     font-size: 85%;
   }
 
-  .input_full input {
+  .input_full input, .input_full textarea {
     width: 100%;
     border: 0px;
     height: 30px;
@@ -380,6 +384,9 @@ export const SharedStyles = css`
     border-bottom: 1px solid #D9D9D9;
     padding-bottom: 2px;
     font-weight: bold;
+  }
+  .input_full textarea {
+    height: 90px;
   }
   .input_half input {
     width: 188px;
@@ -391,11 +398,13 @@ export const SharedStyles = css`
     color: #393939;
   }
   .input_full input:focus,
+  .input_full textarea:focus,
   .input_half input:focus {
     outline: none;
     border-color: #909090;
   }
-  .input_half select {
+
+  .input_full select, .input_half select {
     display: block;
     width: 200px;
     border: 1px solid #D0D0D0;
@@ -413,6 +422,10 @@ export const SharedStyles = css`
     outline: none;
     border-color: #909090;
   }
+  .input_full select {
+    width: 100%;
+  }
+
   .input_full label,
   .input_half label {
     font-weight: bold;
@@ -592,6 +605,39 @@ export const SharedStyles = css`
     border: none;
   }
   
+  /* Input type = File styles */
+  [type="file"] {
+    border: 0;
+    clip: rect(0, 0, 0, 0);
+    height: 1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute !important;
+    white-space: nowrap;
+    width: 1px;
+  }
+   
+  [type="file"] + label {
+    background-color: #f1951b;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 13px;
+    box-shadow: 0 0.3125rem 0.625rem -0.125rem #cfcfcf;
+    cursor: pointer;
+    display: inline-block;
+    padding: 10px;
+  }
+    
+  [type="file"]:focus + label,
+  [type="file"] + label:hover {
+      background-color: #ffa52b;
+      box-shadow: 0 0.3125rem 0.625rem -0.125rem #aaa;
+  }
+    
+  [type="file"]:focus + label {
+    outline: 0px; // dotted #000;
+  }
+  /* End of input type = file */
 
   @media (max-width: 768px) {
     .breadcrumbs li {
@@ -607,5 +653,8 @@ export const SharedStyles = css`
   }
 
   /* End of Chevron Breadcrumbs */  
+  .font-numbers {
+    font-family: system-ui;
+  }
 
 `;

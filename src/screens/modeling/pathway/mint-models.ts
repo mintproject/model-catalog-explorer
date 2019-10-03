@@ -48,16 +48,19 @@ export class MintModels extends connect(store)(MintPathwayPage) {
         {
             name: "Original model",
             fn: (model:Model) => html `
-                <a target="_blank" href="models/explore/${model.original_model}">${model.original_model}</a>
+                <a target="_blank" href="${this._getModelURL(model)}">${model.original_model}</a>
                 `
         },        
         {
             name: "Adjustable variables",
             fn: (model:Model) => {
-                return (model.input_parameters.length > 0) ? 
-                    model.input_parameters.filter((ip) => !ip.value).map((ip) => ip.name).join(", ")
-                    :
-                    "None";
+                if (model.input_parameters.length > 0) {
+                    let values = model.input_parameters.filter((ip) => !ip.value);
+                    if (values.length > 0) {
+                        return values.map((ip) => ip.name).join(', ');
+                    }
+                }
+                return "None";
             }
         },
         {
@@ -86,7 +89,7 @@ export class MintModels extends connect(store)(MintPathwayPage) {
         },
         {
             name: "Spatial dimensionality",
-            fn: (model:Model) => model.dimensionality
+            fn: (model:Model) => html`<span style="font-family: system-ui;"> ${model.dimensionality} </span>`
         },
         {
             name: "Spatial grid type",
@@ -117,6 +120,7 @@ export class MintModels extends connect(store)(MintPathwayPage) {
                 
         let modelids = Object.keys((this.pathway.models || {})) || [];
         let done = (this.pathway.models && modelids.length > 0);
+        let availableModels = this._queriedModels[this._responseVariables.join(",")] || [];
         return html`
         <p>
             This step is for selecting models that are appropriate for the response variables that you selected earlier.
@@ -141,7 +145,7 @@ export class MintModels extends connect(store)(MintPathwayPage) {
                         let model = this.pathway.models![modelid];
                         return html`
                         <li>
-                            <a href="models/explore/${model.id}">${model.name}</a>
+                            <a href="${this._getModelURL(model)}">${model.name}</a>
                         </li>
                         `
                     })}
@@ -179,6 +183,7 @@ export class MintModels extends connect(store)(MintPathwayPage) {
                     The models below generate data that includes the response variables that you selected earlier: 
                     "${this.pathway.response_variables.map((variable) => getVariableLongName(variable)).join(", ")}".
                     Other models that are available in the system do not generate that kind of result.
+                    The column “Relevant Output File” shows the output file that contains the response variable.
                 </p>
                 <ul>
                     <li>
@@ -193,28 +198,38 @@ export class MintModels extends connect(store)(MintPathwayPage) {
                                     <th><b>Model</b></th>
                                     <th>Category</th>
                                     <th>Calibration Region</th>
-                                    <th>Relevant Output</th>
+                                    <th>Relevant Output File</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${(this._queriedModels[this._responseVariables.join(",")] || []).map((model: Model) => {
-                                    return html`
+                                ${availableModels.length>0 ?
+                                    availableModels.map((model: Model) => {
+                                        return html`
+                                        <tr>
+                                            <td><input class="checkbox" type="checkbox" data-modelid="${model.id}"
+                                                ?checked="${modelids.indexOf(model.id!) >= 0}"></input></td>
+                                            <td><a href="${this._getModelURL(model)}">${model.name}</a></td> 
+                                            <td>${model.category}</td>
+                                            <td>${model.calibrated_region}</td>
+                                            <td>
+                                            ${Object.keys(model.output_files).filter((ioid) => {
+                                                return matchVariables(this.pathway.response_variables, model.output_files[ioid].variables, false); // Partial match
+                                            })
+                                            .map((ioid) => { return model.output_files[ioid].name })
+                                            .join(", ")}
+                                            </td>
+                                        </tr>
+                                        `;
+                                    })
+                                :
+                                    html`
                                     <tr>
-                                        <td><input class="checkbox" type="checkbox" data-modelid="${model.id}"
-                                            ?checked="${modelids.indexOf(model.id!) >= 0}"></input></td>
-                                        <td><a href="models/explore/${model.id}">${model.name}</a></td>
-                                        <td>${model.category}</td>
-                                        <td>${model.calibrated_region}</td>
-                                        <td>
-                                        ${Object.keys(model.output_files).filter((ioid) => {
-                                            return matchVariables(this.pathway.response_variables, model.output_files[ioid].variables, false); // Partial match
-                                        })
-                                        .map((ioid) => { return model.output_files[ioid].name })
-                                        .join(", ")}
+                                        <td colspan="5" style="text-align:center; color: rgb(153, 153, 153);">
+                                            - No model found -
                                         </td>
                                     </tr>
-                                    `;
-                                })}
+                                    `
+                                }
                             </tbody>
                         </table>
 
@@ -276,6 +291,12 @@ export class MintModels extends connect(store)(MintPathwayPage) {
         `;
     }
 
+    _getModelURL (model:Model) {
+        return this._regionid + '/models/explore/' + model.original_model + '/'
+               + model.model_version + '/' + model.model_configuration + '/'
+               + model.localname;
+    }
+
     _getSelectedModels() {
         let models:ModelMap = {};
         this.shadowRoot!.querySelectorAll("input.checkbox").forEach((cbox) => {
@@ -302,6 +323,10 @@ export class MintModels extends connect(store)(MintPathwayPage) {
 
     _compareModels() {
         let models = this._getSelectedModels();
+        if (Object.keys(models).length < 2) {
+            showNotification("selectTwoModelsNotification", this.shadowRoot!);
+            return;
+        }
         this._modelsToCompare = Object.values(models);
         showDialog("comparisonDialog", this.shadowRoot!);
     }
@@ -309,6 +334,11 @@ export class MintModels extends connect(store)(MintPathwayPage) {
     _selectPathwayModels() {
         let models = this._getSelectedModels();
         let model_ensembles:ModelEnsembleMap = this.pathway.model_ensembles || {};
+
+        if (Object.keys(models).length < 1) {
+            showNotification("selectOneModelNotification", this.shadowRoot!);
+            return;
+        }
 
         // Check if any models have been removed
         Object.keys(this.pathway.models || {}).map((modelid) => {
@@ -354,7 +384,7 @@ export class MintModels extends connect(store)(MintPathwayPage) {
                 user: this.user!.email
             } as StepUpdateInformation
         };        
-                
+
         updatePathway(this.scenario, this.pathway); 
         
         this._editMode = false;
@@ -403,7 +433,7 @@ export class MintModels extends connect(store)(MintPathwayPage) {
 
     stateChanged(state: RootState) {
         super.setUser(state);
-
+        super.setRegionId(state);
         //let pathwayid = this.pathway ? this.pathway.id : null;
         super.setPathway(state);
 

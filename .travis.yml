@@ -18,7 +18,7 @@ before_install:
 - sudo mv docker-compose /usr/local/bin
 - docker-compose build
 - docker-compose up -d prod
-- docker cp $(docker-compose ps -q prod):/usr/share/nginx/html/ $TRAVIS_BUILD_DIR/mint-standalone-model-catalog/
+- docker cp $(docker-compose ps -q prod):/usr/share/nginx/html/ $TRAVIS_BUILD_DIR/model-catalog-explorer/
 before_deploy:
 - echo $key_pass | gpg --passphrase-fd 0 id_travis_rsa.gpg
 - eval "$(ssh-agent -s)"
@@ -27,13 +27,13 @@ before_deploy:
 deploy:
 - provider: script
   skip_cleanup: true
-  script: bash scripts/deploy.sh $TRAVIS_BUILD_DIR/mint-standalone-model-catalog model-catalog_$TRAVIS_BRANCH
+  script: bash scripts/deploy.sh $TRAVIS_BUILD_DIR/model-catalog-explorer model-catalog_$TRAVIS_BRANCH
   on:
     all_branches: true
     condition: "$TRAVIS_BRANCH =~ ^(master)$"
 - provider: script
   skip_cleanup: true
-  script: bash scripts/deploy.sh $TRAVIS_BUILD_DIR/mint-standalone-model-catalog model-catalog_$TRAVIS_TAG
+  script: bash scripts/deploy.sh $TRAVIS_BUILD_DIR/model-catalog-explorer model-catalog_$TRAVIS_TAG
   on:
     tags: true
     all_branches: true

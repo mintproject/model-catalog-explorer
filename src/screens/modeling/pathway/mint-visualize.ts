@@ -3,7 +3,7 @@ import { connect } from "pwa-helpers/connect-mixin";
 import { store, RootState } from "../../../app/store";
 
 import { SharedStyles } from "../../../styles/shared-styles";
-import { ExecutableEnsemble, Goal, SubGoal, DataEnsembleMap } from "../reducers";
+import { ExecutableEnsemble, Goal, SubGoal, DataEnsembleMap, Visualization } from "../reducers";
 import { getUISelectedSubgoal, getUISelectedGoal } from "../../../util/state_functions";
 import { MintPathwayPage } from "./mint-pathway-page";
 import { getVariableLongName } from "../../../offline_data/variable_list";
@@ -30,6 +30,11 @@ export class MintVisualize extends connect(store)(MintPathwayPage) {
               border: 0px solid black;
               height: 70vh;
           }
+
+          #notes {
+              border: 0px;
+              resize: none;
+          }
           `
         ]
     }
@@ -38,7 +43,30 @@ export class MintVisualize extends connect(store)(MintPathwayPage) {
         if(!this.pathway) {
             return html ``;
         }
-        
+
+        let responseV = this.pathway.response_variables.length > 0?
+                            getVariableLongName(this.pathway.response_variables[0]) : '';
+        let drivingV = this.pathway.driving_variables.length > 0?
+                            getVariableLongName(this.pathway.driving_variables[0]) : '';
+
+        // FIXME: Hack
+        if(responseV == "Crop Production") {
+            this.pathway.visualizations = [
+                {
+                    type: 'web',
+                    url: 'https://viz.mint.isi.edu/economic'
+                }
+            ]
+        }
+        else if(responseV == "Crop Yields") {
+            this.pathway.visualizations = [
+                {
+                    type: 'web',
+                    url: 'https://viz.mint.isi.edu/bokeh/cycles_viz'
+                }
+            ]
+        }
+
         return html`
         <style>
         i {
@@ -47,17 +75,39 @@ export class MintVisualize extends connect(store)(MintPathwayPage) {
             color: #999;
         }
         </style>
+        ${(this.pathway.visualizations && this.pathway.visualizations.length > 0)? html`
+            <h2>Visualizations 
+                ${responseV? 'of response variable ' + responseV : ''}
+                ${drivingV? 'to explore driving variable ' + drivingV : ''}
+            </h2>
+            ${this.pathway.visualizations.map((viz) => this._renderVisualization(viz))}
+            <fieldset class="notes">
+                <legend>Notes</legend>
+                <textarea id="notes">Write some notes here.</textarea>
+            </fieldset>
+            <br/>
+            <details>
+                <summary>Summary of models explored to generate visualizations</summary>
+                ${this._renderSummary()}
+            </details>
+        ` : html`
+            ${this._renderSummary()}
+        `}
+        `;
+    }
 
-        ${this.pathway.id === "eBzD5YQiwpW0nbjdthoM"?
-        html`<iframe src="https://viz.mint.isi.edu/bokeh/econ_viz_live"></iframe>`
-        : html``}
+    _renderVisualization (visualization: Visualization) {
+        switch (visualization.type) {
+            case 'web':
+                return html`<iframe src="${visualization.url}"></iframe>`;
+            default:
+                return html`<a href="${visualization.url}" target="_blank">${visualization.url}</a>`;
+        }
+    }
 
-        ${this.pathway.id === "PcFcTdadrAaU3xAJI17D"?
-        html`<iframe src="https://viz.mint.isi.edu/bokeh/cycles_viz"></iframe>`
-        : html``}
-
-        Visualization is still under development. For now, here is a report of the current analysis.
-        <h1>${this.scenario.name}</h1>
+    _renderSummary () {
+        return html`
+        <h2>${this.scenario.name}</h2>
         <div class="clt">
             <ul>
                 <li><h2>${this._goal.name}</h2>
@@ -173,7 +223,7 @@ export class MintVisualize extends connect(store)(MintPathwayPage) {
                                     <i>Notes: ${this.pathway.notes!.results}</i>
                                 </li>                                
                                 <li>
-                                    Other Results that weren't selected:
+                                    Model execution results that were not recorded:
                                     <ul>
                                         ${this.pathway.executable_ensembles!.map((ensemble: ExecutableEnsemble) => {
                                             let model = this.pathway.models![ensemble.modelid];
@@ -210,7 +260,7 @@ export class MintVisualize extends connect(store)(MintPathwayPage) {
                 </li>
             </ul>
         </div>
-        `;
+        `
     }
 
     stateChanged(state: RootState) {

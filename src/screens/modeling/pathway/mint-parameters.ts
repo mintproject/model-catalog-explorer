@@ -73,7 +73,9 @@ export class MintParameters extends connect(store)(MintPathwayPage) {
                 let model = this.pathway.models![modelid];
                 // Get any existing ensemble selection for the model
                 let ensembles:DataEnsembleMap = this.pathway.model_ensembles![modelid] || {};
-                let input_parameters = model.input_parameters.filter((input) => !input.value);
+                let input_parameters = model.input_parameters
+                    .filter((input) => !input.value)
+                    .sort((a, b) => a.name.localeCompare(b.name));
 
                 return html`
                 <li>
@@ -83,7 +85,7 @@ export class MintParameters extends connect(store)(MintPathwayPage) {
                         <p>
                             Setup the model by specifying values below. You can enter more than one value (comma separated) if you want several runs
                         </p>
-                        <form id="form_${(model.localname || model.id)}">
+                        <form id="form_${this._valid(model.localname || model.id)}">
                         <table class="pure-table pure-table-striped">
                         <thead>
                             <th><b>Adjustable Variable</b></th>
@@ -92,34 +94,31 @@ export class MintParameters extends connect(store)(MintPathwayPage) {
                         <tbody>
                         ${input_parameters.map((input) => {
                             let bindings:string[] = ensembles[input.id!];
-                            if(bindings && bindings.length > 0 && !this._editMode) {
-                                // Already present: Show selections
-                                return html`
-                                <tr>
-                                    <td>${input.name}</td>
-                                    <td>${bindings.join(",")}</td>
-                                </tr>
-                                `;
-                            }
-                            else {
-                                return html `
-                                <tr>
-                                    <td>
-                                        <wl-title level="5">${input.name}</wl-title>
-                                        <div class="caption">The units are ${input.type}. 
-                                        ${input.min && input.max ? 
-                                            html `The range is from ${input.min} to ${input.max}</div>` 
-                                            : html``
-                                        }
-                                    </td>
-                                    <td>
+                            return html`
+                            <tr>
+                                <td>
+                                    <wl-title level="5">${input.name}</wl-title>
+                                    <div class="caption">${input.description}.</div>
+                                    <div class="caption">
+                                    ${input.min && input.max ? 
+                                        html `The range is from ${input.min} to ${input.max}.` : html``
+                                    }
+                                    ${input.default ? html` Default is ${input.default}` : html``}
+                                    </div>
+                                </td>
+                                <td>
+                                    ${(bindings && bindings.length > 0 && !this._editMode) ? 
+                                        bindings.join(",")
+                                        :
+                                        html`
                                         <div class="input_full">
                                             <input type="text" name="${input.id}" value="${(bindings||[]).join(",")}"></input>
                                         </div>
-                                    </td>
-                                </tr>
-                                `;
-                            }
+                                        `
+                                    }
+                                </td>
+                            </tr>
+                            `
                         })}
                         </tbody>
                         </table>
@@ -177,6 +176,10 @@ export class MintParameters extends connect(store)(MintPathwayPage) {
         `;
     }
 
+    _valid(id: string) {
+        return id.replace(/(\/|\.|\:)/g, '_');
+    }
+
     _resetEditMode() {
         this._editMode = false
     }
@@ -186,7 +189,7 @@ export class MintParameters extends connect(store)(MintPathwayPage) {
     }
 
     _getParameterSelections(model: Model, inputid: string) {
-        let form = this.shadowRoot!.querySelector<HTMLFormElement>("#form_"+(model.localname || model.id))!;
+        let form = this.shadowRoot!.querySelector<HTMLFormElement>("#form_"+this._valid(model.localname || model.id))!;
         let inputstr = (form.elements[inputid] as HTMLInputElement).value;
         return inputstr.split(",");
     }
@@ -194,7 +197,10 @@ export class MintParameters extends connect(store)(MintPathwayPage) {
     _setPathwayParametersAndRun() {
         Object.keys(this.pathway.models!).map((modelid) => {
             let model = this.pathway.models![modelid];
-            model.input_parameters.filter((input) => !input.value).map((input) => {
+            let input_parameters = model.input_parameters
+                    .filter((input) => !input.value)
+                    .sort((a, b) => a.name.localeCompare(b.name));
+            input_parameters.filter((input) => !input.value).map((input) => {
                 let inputid = input.id!;
                 // If not in edit mode, then check if we already have bindings for this
                 // -If so, return
@@ -238,17 +244,17 @@ export class MintParameters extends connect(store)(MintPathwayPage) {
                 time: Date.now(),
                 user: this.user!.email
             } as StepUpdateInformation
-        };    
+        };
 
         // Update pathway itself
-        updatePathway(this.scenario, this.pathway);
+        //updatePathway(this.scenario, this.pathway);
         
         let indices = []; // Run all ensembles that haven't already been run
         for(let i=0; i<this.pathway.executable_ensembles!.length; i++) {
             if(!this.pathway.executable_ensembles![i].runid)
                 indices.push(i);
         }
-        runPathwayExecutableEnsembles(this.scenario, this.pathway, indices); 
+        runPathwayExecutableEnsembles(this.scenario, this.pathway, this.prefs, indices); 
 
         showNotification("runNotification", this.shadowRoot!);
     }
