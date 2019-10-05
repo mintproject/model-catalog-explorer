@@ -68,7 +68,7 @@ export class MintAbout extends PageViewElement {
                 </p>
                 <p> 
                     The Model Explorer is maintained in a 
-                    <a href="https://github.com/mintproject/mint-ui-lit" target="_blank">GitHub repository</a>,
+                    <a href="https://github.com/mintproject/model-catalog-explorer" target="_blank">GitHub repository</a>,
                     and it is currently optimized for the Chrome browser.
                 </p>
 
