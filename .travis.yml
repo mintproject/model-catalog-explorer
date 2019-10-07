@@ -4,13 +4,9 @@ addons:
 env:
   matrix:
   - DOCKER_COMPOSE_VERSION=1.23.2
-  global:
-  - secure: hr/TrZVQEpNeZvbDi2paMvSFfImBi8RcxW7DvMgm9y5uMsUzpaLTIjsRe82xpOLy3IoOPWX7Qhzfc5XaAwXy0R+K/uwhKOphzSKr4wdAbTvOD6c3VZ8aRZAgfzu8rrhUhNZoinvrrXP4u3w6gtWBlUYjKLqvRWTolHt6tZu4k7JRXo2KRU6SQz06cwhQ+HDapp2pMs1acpBaYRxVy6qe6fN4HC6BrFP5B2OSP5A7I0snwLBUbznF6nn2NcqjohbyMw8SlOub/+1ycgiVEFVoPv7cgulVdr+S0h2vUVSB7n++7YgP9BSg5cit316J1TQpjD2YBjOUoxc4EoRisLUQGvfhEkKHPBPXaaJIrQBcCpzCynPMXBkuDY+Nsaj41fLq/2yFi7X+7GEjCbspl5qhHEF2H+eEbEls/jsj6n99zpbf8W3OgH5imB9cwLc7/EncBrDxxzKhOrTSkknlAuNUnnGYIeFUtxp4Z7+YqiJZ155ojfE5hJZBA1jmMWSn3ijIKOs1PGvx4/ia+nhT+AKTxWBW66h0lVs5yxI4DbRdnvvXpw2lxgsCN8orRNMNzK9cgkUNFW14w6u4BZsKfhNfkwHsM5nMzLOtK12PDjM6s3LduC8WdivXEL72j8VnKvonkBJU2n8RHf2Ec/JfihL79NIVTlOTEzcaOHqCUj4xJwc=
 services:
 - docker
 before_install:
-- openssl aes-256-cbc -K $encrypted_af150e6bb5bf_key -iv $encrypted_af150e6bb5bf_iv
-  -in google-api-key.ts.enc -out src/config/google-api-key.ts -d
 - sudo rm /usr/local/bin/docker-compose
 - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname
   -s`-`uname -m` > docker-compose
@@ -30,7 +26,7 @@ deploy:
   script: bash scripts/deploy.sh $TRAVIS_BUILD_DIR/model-catalog-explorer model-catalog_$TRAVIS_BRANCH
   on:
     all_branches: true
-    condition: "$TRAVIS_BRANCH =~ ^(master)$"
+    condition: "$TRAVIS_BRANCH =~ ^(master|travis)$"
 - provider: script
   skip_cleanup: true
   script: bash scripts/deploy.sh $TRAVIS_BUILD_DIR/model-catalog-explorer model-catalog_$TRAVIS_TAG
