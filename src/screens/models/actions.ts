@@ -13,6 +13,8 @@ export const MODELS_DETAIL = 'MODELS_DETAIL';
 import { apiFetch,  CALIBRATIONS_FOR_VAR_SN, METADATA_NOIO_FOR_MODEL_CONFIG, PARAMETERS_FOR_CONFIG,
 IO_AND_VARS_SN_FOR_CONFIG } from '../../util/model-catalog-requests';
 import { Dataset } from "../datasets/reducers";
+import { getVariableProperty } from "offline_data/variable_list";
+import { MintPreferences } from "app/reducers";
 
 export interface ModelsActionList extends Action<'MODELS_LIST'> { models: Model[] };
 export interface ModelsActionVariablesQuery extends Action<'MODELS_VARIABLES_QUERY'> { 
@@ -24,11 +26,9 @@ export interface ModelsActionDetail extends Action<'MODELS_DETAIL'> { model: Mod
 
 export type ModelsAction = ModelsActionList | ModelsActionVariablesQuery |  ModelsActionDetail ;
 
-const MODEL_CATALOG_URI = "https://query.mint.isi.edu/api/dgarijo/MINT-ModelCatalogQueries";
-
 // List all Model Configurations
 type ListModelsThunkResult = ThunkAction<void, RootState, undefined, ModelsActionList>;
-export const listAllModels: ActionCreator<ListModelsThunkResult> = () => (dispatch) => {
+export const listAllModels: ActionCreator<ListModelsThunkResult> = (prefs: MintPreferences) => (dispatch) => {
     
     // Offline mode example query
     if(OFFLINE_DEMO_MODE) {
@@ -39,7 +39,7 @@ export const listAllModels: ActionCreator<ListModelsThunkResult> = () => (dispat
         return;
     }
 
-    fetch(MODEL_CATALOG_URI + "/getModelConfigurations").then((response) => {
+    fetch(prefs.model_catalog_api + "/getModelConfigurations").then((response) => {
         response.json().then((obj) => {
             let models = [] as Model[];
             let bindings = obj["results"]["bindings"];
@@ -61,7 +61,8 @@ export const listAllModels: ActionCreator<ListModelsThunkResult> = () => (dispat
 
 // Query Model Catalog By Output? Variables
 type QueryModelsThunkResult = ThunkAction<void, RootState, undefined, ModelsActionVariablesQuery>;
-export const queryModelsByVariables: ActionCreator<QueryModelsThunkResult> = (response_variables: string[]) => (dispatch) => {
+export const queryModelsByVariables: ActionCreator<QueryModelsThunkResult> = (response_variables: string[],
+        driving_variables: string[]) => (dispatch) => {
     let models = [] as Model[];
 
     if(OFFLINE_DEMO_MODE) {
@@ -93,6 +94,10 @@ export const queryModelsByVariables: ActionCreator<QueryModelsThunkResult> = (re
     let variables = response_variables[0].split(/\s*,\s/);
     Promise.all(
         variables.map((variable) => {
+            let fromvar = getVariableProperty(variable, "created_from");
+            if(fromvar) {
+                variable = fromvar;
+            }
             return apiFetch({
                 type: CALIBRATIONS_FOR_VAR_SN,
                 std: variable,
@@ -157,76 +162,119 @@ export const queryModelsByVariables: ActionCreator<QueryModelsThunkResult> = (re
                                 id: value.io,
                                 name: value.iolabel,
                                 type: value.type,
+                                position: value.position ? parseInt(value.position) : 0,
                                 variables: []
                             };
                             if(value.fixedValueURL) {
+                                let dcids = value.fixedValueDCId.split(/\s*,\s*/);
+                                let urls = value.fixedValueURL.split(/\s*,\s*/);
+                                let resources = urls.map((url) => {
+                                    let fname = url.replace(/.*[#\/]/, '');
+                                    return { 
+                                        url: url,
+                                        id: fname,
+                                        name: fname,
+                                        selected: true
+                                    };
+                                });
                                 io.value = {
-                                    id: value.fixedValueDCId,
-                                    resources: [{
-                                        url: value.fixedValueURL
-                                    }]
+                                    id: dcids[0],
+                                    resources: resources
                                 } as Dataset;
                             }
                             fileio[value.io] = io;
-                            if(value.prop.match(/#hasInput$/)) {
-                                inputs.push(io);
-                            } else {
-                                outputs.push(io);
+                            if(value.prop) {
+                                if(value.prop.match(/#hasInput$/)) {
+                                    inputs.push(io);
+                                } else {
+                                    outputs.push(io);
+                                }
                             }
                         }
-                        if(value.st)
+                        if(value.st) {
                             io.variables.push(value.st);
+                        }
                     });
                     
                     // Get model config input/output parameters
                     let params: any = {};
                     let parameters:ModelParameter[] = [];
+                    let matched_driving_variable = false;
                     values[2].map((value: any) => {
+                        if(params[value.p]) {
+                            // Do not add duplicate parameters
+                            return;
+                        }
+                        let adjustment_variable = value.standardV || "";
+                        let accepted_values = value.acceptedValues ? value.acceptedValues.split(/\s*;\s*/) : null
                         let param: ModelParameter =  {
                             id: value.p,
                             name: value.paramlabel,
                             type: value.pdatatype,
                             min: value.minVal || "",
                             max: value.maxVal || "",
+                            unit: value.unit || "",
                             default: value.defaultvalue || "",
-                            description: value.description || ""
+                            description: value.description || "",
+                            adjustment_variable: adjustment_variable,
+                            position: value.position ? parseInt(value.position) : 0,
+                            accepted_values: accepted_values
                         };
                         if(value.fixedValue)
                             param.value = value.fixedValue;
+                        // Hack to fix FALSE to false
+                        if(param.value == "FALSE")
+                            param.value = "false";
                         params[value.p] = param;
                         parameters.push(param);
+
+                        // If some driving/adjustment variables are passed, make sure they are matched
+                        if (!param.value && driving_variables && driving_variables.indexOf(adjustment_variable) >= 0) {
+                            matched_driving_variable = true;
+                        }
                     });
 
-                    let model: Model = {
-                        id: modelid,
-                        localname: modelid.substr(modelid.lastIndexOf("/") + 1),
-                        name: meta['label'],
-                        calibrated_region: meta["regionName"] || "",
-                        description: row["desc"] || "",
-                        category: row["category"] || "",
-                        wcm_uri: row["compLoc"] || "",
-                        input_files: inputs,
-                        input_parameters: parameters,
-                        output_files: outputs,
-                        original_model: row["modelName"] || "",
-                        model_version: row["versionName"] || "",
-                        model_configuration: row["configurationName"] || "",
-                        model_type: "",
-                        parameter_assignment: meta["paramAssignMethod"] || "",
-                        parameter_assignment_details: "",
-                        target_variable_for_parameter_assignment: (meta["targetVariables"] || []).join(", "),
-                        modeled_processes: meta["processes"] || "",
-                        dimensionality: meta['gridDim'] || "",
-                        spatial_grid_type: (meta['gridType'] || "").replace(/.*#/, ''),
-                        spatial_grid_resolution: meta['gridSpatial'] || "",
-                        minimum_output_time_interval: ""
-                    };
-                    //console.log(model);
-                    return model;
+                    if(!driving_variables || !driving_variables.length || matched_driving_variable) {
+                        // If this model matches the adjustment/driving variable
+
+                        let input_parameters = parameters
+                            .sort((a, b) => a.name.localeCompare(b.name));
+                        let input_files = inputs
+                            .sort((a, b) => a.name.localeCompare(b.name));
+
+                        let model: Model = {
+                            id: modelid,
+                            localname: modelid.substr(modelid.lastIndexOf("/") + 1),
+                            name: meta['label'],
+                            calibrated_region: meta["regionName"] || "",
+                            description: row["desc"] || "",
+                            category: row["category"] || "",
+                            wcm_uri: row["compLoc"] || "",
+                            input_files: input_files,
+                            input_parameters: input_parameters,
+                            output_files: outputs,
+                            original_model: row["modelName"] || "",
+                            model_version: row["versionName"] || "",
+                            model_configuration: row["configurationName"] || "",
+                            model_type: "",
+                            parameter_assignment: meta["paramAssignMethod"] || "",
+                            parameter_assignment_details: "",
+                            target_variable_for_parameter_assignment: (meta["targetVariables"] || []).join(", "),
+                            modeled_processes: meta["processes"] || "",
+                            dimensionality: meta['gridDim'] || "",
+                            spatial_grid_type: (meta['gridType'] || "").replace(/.*#/, ''),
+                            spatial_grid_resolution: meta['gridSpatial'] || "",
+                            minimum_output_time_interval: "",
+                            usage_notes: meta['usageNotes'] || ""
+                        };
+                        //console.log(model);
+                        return model;
+                    }
                 });
             });
         Promise.all(calibrationPromises).then(function(models) {
             //console.log(models)
+            models = models.filter((m) => m);
             dispatch({
                 type: MODELS_VARIABLES_QUERY,
                 variables: response_variables,

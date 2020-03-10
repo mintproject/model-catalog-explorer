@@ -25,13 +25,15 @@ export interface Model extends IdNameObject {
     dimensionality?: number,
     spatial_grid_type?: string,
     spatial_grid_resolution?: string,
-    minimum_output_time_interval?: string
+    minimum_output_time_interval?: string,
+    usage_notes?: string
 };
 
 export interface ModelIO extends IdNameObject {
     type?: string,
     variables: string[],
     value?: Dataset,
+    position?: number
 }
 
 export interface ModelParameter extends IdNameObject {
@@ -39,8 +41,12 @@ export interface ModelParameter extends IdNameObject {
     description?: string,
     min?: string,
     max?: string,
+    unit?: string,
     default?: string,
-    value?: string
+    value?: string,
+    adjustment_variable?: string,
+    accepted_values?: string[],
+    position?: number
 }
 
 export interface ModelDetail extends Model {

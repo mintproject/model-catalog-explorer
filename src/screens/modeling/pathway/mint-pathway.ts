@@ -11,13 +11,17 @@ import "./mint-runs";
 import "./mint-results";
 import "./mint-visualize";
 
+import "weightless/progress-spinner";
+
 import { getPathwayVariablesStatus, TASK_NOT_STARTED, getPathwayModelsStatus, 
     getPathwayDatasetsStatus, getPathwayRunsStatus, getPathwayResultsStatus, 
     TASK_DONE, TASK_PARTLY_DONE, 
     getUISelectedSubgoal, getPathwayParametersStatus } from "../../../util/state_functions";
-import { SubGoal } from "../reducers";
+import { SubGoal, Pathway } from "../reducers";
 import { BASE_HREF } from "../../../app/actions";
 import { MintPathwayPage } from "./mint-pathway-page";
+import { hideNotification } from "util/ui_functions";
+import { getPathway } from "../actions";
 
 @customElement('mint-pathway')
 export class MintPathway extends connect(store)(MintPathwayPage) {
@@ -27,32 +31,35 @@ export class MintPathway extends connect(store)(MintPathwayPage) {
     @property({ type: String })
     private _currentMode: string = "";
 
+    @property({type: Boolean})
+    private _dispatched: boolean = false;
+
     static get styles() {
         return [
           SharedStyles,
           css`
 
-          .breadcrumbs li.active, .breadcrumbs li.done.active {
+          .breadcrumbs a.active, .breadcrumbs a.done.active {
             background-color: #0f7acf;
             color: white;
           }
-          .breadcrumbs li.active:before, .breadcrumbs li.done.active:before {
+          .breadcrumbs a.active:before, .breadcrumbs a.done.active:before {
             border-color: #0f7acf;
             border-left-color: transparent;
           }
-          .breadcrumbs li.active:after, .breadcrumbs li.done.active:after {
+          .breadcrumbs a.active:after, .breadcrumbs a.done.active:after {
             border-left-color: #0f7acf;
           }
 
-          .breadcrumbs li.done {
+          .breadcrumbs a.done {
             background-color: #06436c;
             color: white;
           }
-          .breadcrumbs li.done:before {
+          .breadcrumbs a.done:before {
             border-color: #06436c;
             border-left-color: transparent;
           }
-          .breadcrumbs li.done:after {
+          .breadcrumbs a.done:after {
             border-left-color: #06436c;
           }
 
@@ -75,27 +82,24 @@ export class MintPathway extends connect(store)(MintPathwayPage) {
     private _renderProgressBar() {
         return html`
             <ul class="breadcrumbs">
-                <li id="variables_breadcrumb" 
-                    class="${this._getBreadcrumbClass('variables')}" 
-                    @click="${() => { this._selectMode('variables') }}">Variables</li>
-                <li id="models_breadcrumb" 
+                <a id="models_breadcrumb" 
                     class="${this._getBreadcrumbClass('models')}" 
-                    @click="${() => { this._selectMode('models') }}">Models</li>
-                <li id="datasets_breadcrumb" 
+                    href="${this._getModeURL('models')}">Models</li>
+                <a id="datasets_breadcrumb" 
                     class="${this._getBreadcrumbClass('datasets')}" 
-                    @click="${() => { this._selectMode('datasets') }}">Datasets</li>
-                <li id="parameters_breadcrumb" 
+                    href="${this._getModeURL('datasets')}">Datasets</li>
+                <a id="parameters_breadcrumb" 
                     class="${this._getBreadcrumbClass('parameters')}" 
-                    @click="${() => { this._selectMode('parameters') }}">Setup</li>
-                <li id="runs_breadcrumb" 
+                    href="${this._getModeURL('parameters')}">Setup</li>
+                <a id="runs_breadcrumb" 
                     class="${this._getBreadcrumbClass('runs')}" 
-                    @click="${() => { this._selectMode('runs') }}">Runs</li>
-                <li id="results_breadcrumb" 
+                    href="${this._getModeURL('runs')}">Runs</li>
+                <a id="results_breadcrumb" 
                     class="${this._getBreadcrumbClass('results')}" 
-                    @click="${() => { this._selectMode('results') }}">Results</li>
-                <li id="visualize_breadcrumb" 
+                    href="${this._getModeURL('results')}">Results</li>
+                <a id="visualize_breadcrumb" 
                     class="${this._getBreadcrumbClass('visualize')}" 
-                    @click="${() => { this._selectMode('visualize') }}">Visualize</li>
+                    href="${this._getModeURL('visualize')}">Visualize</li>
             </ul>
         `;
     }
@@ -144,7 +148,7 @@ export class MintPathway extends connect(store)(MintPathwayPage) {
             }
         }
         return "visualize";
-    }    
+    }
 
     private _getBreadcrumbClass(section: string) {
         let status = this._getSectionStatus(section);
@@ -183,14 +187,22 @@ export class MintPathway extends connect(store)(MintPathwayPage) {
         this._currentMode = mode;
 
         // TODO: Change the url to reflect mode change.
-        if(this.subgoal) {
+        if(this.subgoal && this.pathway) {
           let page = this._regionid + "/modeling/scenario/" + 
                 this.scenario.id + "/" + this.subgoal!.id + "/" + this.pathway.id + "/" + mode;
           window.history.pushState({}, mode, BASE_HREF + page);
         }
     }
 
+    private _getModeURL(mode: string) {
+        return this._regionid + "/modeling/scenario/" + 
+                this.scenario.id + "/" + this.subgoal!.id + "/" + this.pathway.id + "/" + mode;
+    }    
+
     protected render() {
+        if(this._dispatched)
+            return html`<wl-progress-spinner class="loading"></wl-progress-spinner>`;
+
         if (!this.pathway) {
             return html``;
         }
@@ -234,21 +246,100 @@ export class MintPathway extends connect(store)(MintPathwayPage) {
 
     stateChanged(state: RootState) {
         super.setRegionId(state);
-        if(super.setPathway(state)) {
-            // If pathway changed
-            console.log("mint-pathway: Pathway changed !");
-            this._selectMode(this._getNextMode());
-            
-            //FIXME: Add this back later
-            //checkPathwayEnsembleStatus(this.scenario, this.pathway, this.prefs);
+        super.setUser(state);
+          
+        this.subgoal = getUISelectedSubgoal(state);
+
+        let pathwayid = state.ui!.selected_pathwayid;
+        // If there is no pathway, then stop monitoring
+        if(!pathwayid) {
+            if(this.pathway) {
+                //console.log("No pathway passed in ? Unsubscribing to pathway " + this.pathway.id);
+                //this.pathway.unsubscribe();
+            }
+            this.pathway = null;
+        }
+        // If a pathway has been selected, fetch pathway details
+        if(pathwayid && this.user) {
+            if(!this._dispatched && (!state.modeling.pathway || (state.modeling.pathway.id != pathwayid))) {
+                // Unsubscribe to any existing pathway details listener
+                if(state.modeling.pathway && state.modeling.pathway.unsubscribe) {
+                    console.log("Unsubscribing to pathway " + state.modeling.pathway.id);
+                    state.modeling.pathway.unsubscribe();
+                }
+                console.log("Subscribing to pathway " + pathwayid);
+
+                // Reset the scenario details
+                this.pathway = null;
+                this._dispatched = true;
+                // Make a subscription call for the new scenario id
+                store.dispatch(getPathway(this.scenario.id, pathwayid));
+                return;
+            }
+
+            // If we've already got the details in the state
+            // - extract details from the state
+            if(state.modeling.pathway && state.modeling.pathway.id == pathwayid) {
+                this._dispatched = false;
+                if(this.pathwayChanged(this.pathway, state.modeling.pathway)) {
+                    this.pathway = state.modeling.pathway;
+                    if(!state.ui.selected_pathway_section)
+                        this._selectMode(this._getNextMode());
+                }
+            }
+            else if(!state.modeling.pathway) {
+                this._dispatched = false;
+            }
         }
 
-        this.subgoal = getUISelectedSubgoal(state);
-          
-        if(state.ui.selected_pathway_section) {
+        if(this.pathway && state.ui.selected_pathway_section) {
           //console.log(state.ui.selected_pathway_section);
           this._selectMode(state.ui.selected_pathway_section);
           state.ui.selected_pathway_section = "";
         }
+
+        if(!this.user && state.modeling.pathway) {
+            // Logged out, Unsubscribe
+            if(state.modeling.pathway.unsubscribe) {
+                console.log("Unsubscribing to pathway " + state.modeling.pathway.id);
+                state.modeling.pathway.unsubscribe();
+            }
+            state.modeling.pathway = undefined;
+        }
+    }
+
+    pathwayChanged(oldp: Pathway, newp: Pathway) {
+        if(!oldp && newp)
+            return true;
+        if(oldp && newp) {
+            let oldup = oldp.last_update;
+            let newup = newp.last_update;
+            if(!oldup && newup) return true;
+            if(oldup && !newup) return true;
+            if(!oldup && !newup) return false;
+            if(
+                this.timeChanged(oldup.variables, newup.variables) ||
+                this.timeChanged(oldup.datasets, newup.datasets) ||
+                this.timeChanged(oldup.models, newup.models) ||
+                this.timeChanged(oldup.parameters, newup.parameters) ||
+                this.timeChanged(oldup.results, newup.results)
+            ) {
+                console.log("Pathway changed !");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    timeChanged(oldsection:any, newsection: any) {
+        if(!oldsection && !newsection)
+            return false;
+        if(!oldsection && newsection)
+            return true;
+        if(oldsection && !newsection)
+            return true;
+        if(oldsection.time != newsection.time)
+            return true;
+        return false;
     }
 }

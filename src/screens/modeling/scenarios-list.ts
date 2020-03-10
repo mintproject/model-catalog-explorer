@@ -20,13 +20,12 @@ import "weightless/snackbar";
 
 import "./mint-scenario";
 
-import { navigate, BASE_HREF, goToPage } from '../../app/actions';
+import { goToPage } from '../../app/actions';
 import { PageViewElement } from '../../components/page-view-element';
 import { renderNotifications } from '../../util/ui_renders';
 import { formElementsComplete, showDialog, hideDialog, showNotification, resetForm, hideNotification } from '../../util/ui_functions';
-import { listTopRegions, queryRegions } from '../regions/actions';
-import { RegionList, Region } from '../regions/reducers';
-import { toTimeStamp, fromTimeStampToDateString } from 'util/date-utils';
+import { Region, RegionMap } from '../regions/reducers';
+import { toTimeStamp, fromTimeStampToDateString, fromTimestampIntegerToString, fromTimestampIntegerToReadableString } from 'util/date-utils';
 
 @customElement('scenarios-list')
 export class ScenariosList extends connect(store)(PageViewElement) {
@@ -34,10 +33,7 @@ export class ScenariosList extends connect(store)(PageViewElement) {
   private _top_region: Region;
 
   @property({type: Object})
-  private _regions!: RegionList;
-
-  @property({type: Object})
-  private _subRegions!: RegionList;
+  private _regions!: RegionMap;
 
   @property({type: Object})
   private _list!: ScenarioList;
@@ -58,12 +54,18 @@ export class ScenariosList extends connect(store)(PageViewElement) {
     return html`
 
     <div class="cltrow scenariorow">
-        <div class="cltmain">
-            <wl-title level="3" style="margin: 0px">Use Models</wl-title>
+        <wl-button flat inverted disabled>
+            <wl-icon>arrow_back_ios</wl-icon>
+        </wl-button>
+        <div class="cltmain navtop">
+            <wl-title level="3">Problem statements</wl-title>
         </div>
         <wl-icon @click="${this._addScenarioDialog}" 
-        class="actionIcon bigActionIcon" id="addScenarioIcon">note_add</wl-icon>
+          class="actionIcon bigActionIcon addIcon" id="addScenarioIcon">note_add</wl-icon>
     </div>
+    <p style="margin-left: 44px">
+    Choose an existing problem from the list below or click add to create a new one. 
+    </p>
     <!-- Show Scenario List -->
     ${this._list && this._list.scenarioids.map((scenarioid) => {
         let scenario = this._list.scenarios[scenarioid];
@@ -73,15 +75,23 @@ export class ScenariosList extends connect(store)(PageViewElement) {
           <wl-list-item class="active"
               @click="${this._onSelectScenario}"
               data-scenarioid="${scenario.id}">
-              <wl-title level="4" style="margin: 0">${scenario.name}</wl-title>
-              <wl-title level="5">${region.name}</wl-title>
-              <span>Dates: ${fromTimeStampToDateString(scenario.dates.start_date)} to 
-                ${fromTimeStampToDateString(scenario.dates.end_date)}</span>
+              <wl-icon slot="before">label_important</wl-icon>
               <div slot="after" style="display:flex">
-                <wl-icon @click="${this._editScenarioDialog}" data-scenarioid="${scenario.id}"
-                    id="editScenarioIcon" class="actionIcon editIcon">edit</wl-icon>
-                <wl-icon @click="${this._onDeleteScenario}" data-scenarioid="${scenario.id}"
-                    id="delScenarioIcon" class="actionIcon deleteIcon">delete</wl-icon>
+                <div>
+                  ${scenario.last_update_user}<br/>
+                  ${fromTimestampIntegerToReadableString(parseInt(scenario.last_update))}
+                </div>
+                <div style="height: 24px; padding-left: 10px; display:flex">
+                  <wl-icon @click="${this._editScenarioDialog}" data-scenarioid="${scenario.id}"
+                      id="editScenarioIcon" class="actionIcon editIcon">edit</wl-icon>
+                  <wl-icon @click="${this._onDeleteScenario}" data-scenarioid="${scenario.id}"
+                      id="delScenarioIcon" class="actionIcon deleteIcon">delete</wl-icon>
+                </div>
+              </div>
+              <wl-title level="4" style="margin: 0">${scenario.name}</wl-title>
+              <div>
+                Time Period: ${fromTimeStampToDateString(scenario.dates.start_date)} to 
+                ${fromTimeStampToDateString(scenario.dates.end_date)}
               </div>
           </wl-list-item>
           `
@@ -118,11 +128,13 @@ export class ScenariosList extends connect(store)(PageViewElement) {
   _renderDialogs() {
     return html`
     <wl-dialog id="scenarioDialog" fixed backdrop blockscrolling>
-      <h3 slot="header">What is your scenario ?</h3>
+      <h3 slot="header">What is your Problem statement ?</h3>
       <div slot="content">
         <form id="scenarioForm">
           <p>
-            Please enter a short text to describe the scenario that you would like to investigate
+          Please enter a short text to describe the overall problem. 
+          For instance, “Explore interventions to increase agricultural productivity in South Sudan”,  
+          “Explore interventions to improve farmer livelihoods in Gambella”. 
           </p>
           <input type="hidden" name="scenarioid"></input>
           <div class="input_full">
@@ -130,33 +142,8 @@ export class ScenariosList extends connect(store)(PageViewElement) {
           </div>
           
           <div style="height:10px;">&nbsp;</div>
-
-          <div class="formRow">
-            <div class="input_half">
-              <label>Region</label>
-              <select name="scenario_region">
-                ${this._top_region ? 
-                  html `<option value="${this._top_region.id}" selected>${this._top_region.name}</option>`
-                  : ""
-                }
-              </select>
-            </div>
-            <div class="input_half">
-              <label>Sub-Region</label>
-              <select name="scenario_subregion">
-                <option disabled selected>Select</option>
-                <option value="">None</option>
-                ${this._list && Object.keys(this._subRegions || {}).map((subRegionid) => {
-                  let subRegion = this._subRegions![subRegionid];
-                  return html`
-                    <option value="${subRegion.id}">${subRegion.name}</option>
-                  `;
-                })}
-              </select>
-            </div>            
-          </div>
-
-          <div style="height:20px;">&nbsp;</div>
+          <input type="hidden" name="scenario_region" value="${this._top_region.id}"></input>
+          <input type="hidden" name="scenario_subregion" value=""></input>
 
           <div class="input_full">
             <label>Time Period</label>
@@ -182,7 +169,10 @@ export class ScenariosList extends connect(store)(PageViewElement) {
 
   _addScenarioDialog() {
     let form:HTMLFormElement = this.shadowRoot!.querySelector<HTMLFormElement>("#scenarioForm")!;
-    resetForm(form, "scenario_region");
+    (form.elements["scenarioid"] as HTMLInputElement).value = "";
+    (form.elements["scenario_name"] as HTMLInputElement).value = "";
+    (form.elements["scenario_from"] as HTMLInputElement).value = "";
+    (form.elements["scenario_to"] as HTMLInputElement).value = "";
 
     showDialog("scenarioDialog", this.shadowRoot!);
   }
@@ -192,8 +182,8 @@ export class ScenariosList extends connect(store)(PageViewElement) {
     if(formElementsComplete(form, ["scenario_name", "scenario_region", "scenario_from", "scenario_to"])) {
         let scenarioid = (form.elements["scenarioid"] as HTMLInputElement).value;
         let scenario_name = (form.elements["scenario_name"] as HTMLInputElement).value;
-        let scenario_region = (form.elements["scenario_region"] as HTMLSelectElement).value;
-        let scenario_subregion = (form.elements["scenario_subregion"] as HTMLSelectElement).value;
+        let scenario_region = (form.elements["scenario_region"] as HTMLInputElement).value;
+        let scenario_subregion = (form.elements["scenario_subregion"] as HTMLInputElement).value;
         let scenario_from = (form.elements["scenario_from"] as HTMLInputElement).value;
         let scenario_to = (form.elements["scenario_to"] as HTMLInputElement).value;
 
@@ -308,19 +298,15 @@ export class ScenariosList extends connect(store)(PageViewElement) {
     if(state.modeling) {
       if(state.modeling.scenarios) {
         this._list = state.modeling.scenarios;
+        this._list.scenarioids.sort((id1,id2) => {
+          return parseInt(this._list.scenarios[id2].last_update) - parseInt(this._list.scenarios[id1].last_update);
+        });
       }
     }
     if(state.ui && state.ui.selected_top_regionid && state.regions!.regions) {
       this._top_regionid = state.ui.selected_top_regionid;
       this._regions = state.regions!.regions;
       this._top_region = this._regions[this._top_regionid];
-
-      if(!state.regions!.query_result || !state.regions!.query_result[this._top_regionid]) {
-        store.dispatch(queryRegions(this._top_regionid));
-      }
-      else {
-        this._subRegions = state.regions!.query_result[this._top_regionid]["*"];
-      }
     }
     super.setRegionId(state);
   }

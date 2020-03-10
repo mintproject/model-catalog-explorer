@@ -2,12 +2,12 @@ import { customElement, html, property, css } from "lit-element";
 import { connect } from "pwa-helpers/connect-mixin";
 import { store, RootState } from "../../../app/store";
 
-import { ModelMap, ModelEnsembleMap, ComparisonFeature, StepUpdateInformation } from "../reducers";
+import { ModelMap, ModelEnsembleMap, ComparisonFeature, StepUpdateInformation, ExecutableEnsembleSummary } from "../reducers";
 import models, { VariableModels, Model } from "../../models/reducers";
 
 import { SharedStyles } from "../../../styles/shared-styles";
-import { updatePathway } from "../actions";
-import { removeDatasetFromPathway, createPathwayExecutableEnsembles, matchVariables } from "../../../util/state_functions";
+import { updatePathway, deleteAllPathwayEnsembleIds } from "../actions";
+import { removeDatasetFromPathway, matchVariables, getUISelectedSubgoalRegion } from "../../../util/state_functions";
 
 import "weightless/tooltip";
 import "weightless/popover-card";
@@ -17,6 +17,8 @@ import { selectPathwaySection } from "../../../app/ui-actions";
 import { queryModelsByVariables } from "../../models/actions";
 import { getVariableLongName } from "../../../offline_data/variable_list";
 import { MintPathwayPage } from "./mint-pathway-page";
+import { Region } from "screens/regions/reducers";
+import { IdMap } from "app/reducers";
 
 store.addReducers({
     models
@@ -34,15 +36,22 @@ export class MintModels extends connect(store)(MintPathwayPage) {
     @property({type: Array})
     private _modelsToCompare: Model[] = [];
 
+    @property({type: Object})
+    private _subregion: Region;
+    
+    @property({type:Boolean})
+    private _showAllModels: boolean = false;
+
     private _dispatched: Boolean = false;
 
     private _responseVariables: string[] = [];
+    private _drivingVariables: string[] = [];
 
     private _comparisonFeatures: Array<ComparisonFeature> = [
-        {
+        /*{
             name: "More information",
-            fn: () => html `
-                <a target="_blank" href="#">Model Profile</a>
+            fn: (model:Model) => html `
+                <a target="_blank" href="${this._getModelSetupURL(model)}">Model Profile</a>
                 `
         },        
         {
@@ -50,7 +59,7 @@ export class MintModels extends connect(store)(MintPathwayPage) {
             fn: (model:Model) => html `
                 <a target="_blank" href="${this._getModelURL(model)}">${model.original_model}</a>
                 `
-        },        
+        },        */
         {
             name: "Adjustable variables",
             fn: (model:Model) => {
@@ -121,9 +130,21 @@ export class MintModels extends connect(store)(MintPathwayPage) {
         let modelids = Object.keys((this.pathway.models || {})) || [];
         let done = (this.pathway.models && modelids.length > 0);
         let availableModels = this._queriedModels[this._responseVariables.join(",")] || [];
+        let regionModels = availableModels.filter((model: Model) => {
+            let model_region_name = model.calibrated_region.toLowerCase();
+            let top_region_name = this._region.name.toLowerCase();
+            let task_region_name = this._subregion ? this._subregion.name.toLowerCase() : null;
+            if(model_region_name.indexOf(top_region_name) >=0) return true;
+            if(top_region_name.indexOf(model_region_name) >=0) return true;
+            if(task_region_name) {
+                if(model_region_name.indexOf(task_region_name) >=0) return true;
+                if(task_region_name.indexOf(model_region_name) >=0) return true;
+            }
+            return false;
+        })
         return html`
         <p>
-            This step is for selecting models that are appropriate for the response variables that you selected earlier.
+            The models below are appropriate for the indicators of interest. You can select multiple calibrated models and compare them.  
         </p>
         ${done && !this._editMode ? html`<p>Please click on the <wl-icon class="actionIcon">edit</wl-icon> icon to make changes.</p>`: html``}
         ${(done && !this._editMode) ?
@@ -145,7 +166,7 @@ export class MintModels extends connect(store)(MintPathwayPage) {
                         let model = this.pathway.models![modelid];
                         return html`
                         <li>
-                            <a href="${this._getModelURL(model)}">${model.name}</a>
+                            <a target="_blank" href="${this._getModelURL(model)}">${model.name}</a>
                         </li>
                         `
                     })}
@@ -180,10 +201,17 @@ export class MintModels extends connect(store)(MintPathwayPage) {
                     Models
                 </wl-title>
                 <p>
-                    The models below generate data that includes the response variables that you selected earlier: 
+                    The models below generate data that includes the indicator that you selected earlier: 
                     "${this.pathway.response_variables.map((variable) => getVariableLongName(variable)).join(", ")}".
                     Other models that are available in the system do not generate that kind of result.
-                    The column “Relevant Output File” shows the output file that contains the response variable.
+                    ${this.pathway.driving_variables.length ? 
+                        html`
+                        These models also allow adjusting the adjustable variable you selected earlier:
+                        "${this.pathway.driving_variables.map((variable) => getVariableLongName(variable)).join(", ")}".
+                        `
+                        : ""
+                    }
+                    The column "Relevant Output File" shows the output file that contains the response variable.
                 </p>
                 <ul>
                     <li>
@@ -204,22 +232,26 @@ export class MintModels extends connect(store)(MintPathwayPage) {
                             <tbody>
                                 ${availableModels.length>0 ?
                                     availableModels.map((model: Model) => {
-                                        return html`
-                                        <tr>
-                                            <td><input class="checkbox" type="checkbox" data-modelid="${model.id}"
-                                                ?checked="${modelids.indexOf(model.id!) >= 0}"></input></td>
-                                            <td><a href="${this._getModelURL(model)}">${model.name}</a></td> 
-                                            <td>${model.category}</td>
-                                            <td>${model.calibrated_region}</td>
-                                            <td>
-                                            ${Object.keys(model.output_files).filter((ioid) => {
-                                                return matchVariables(this.pathway.response_variables, model.output_files[ioid].variables, false); // Partial match
-                                            })
-                                            .map((ioid) => { return model.output_files[ioid].name })
-                                            .join(", ")}
-                                            </td>
-                                        </tr>
-                                        `;
+                                        if(!model)
+                                            return;
+                                        if(this._showAllModels || regionModels.indexOf(model) >=0) {
+                                            return html`
+                                            <tr>
+                                                <td><input class="checkbox" type="checkbox" data-modelid="${model.id}"
+                                                    ?checked="${modelids.indexOf(model.id!) >= 0}"></input></td>
+                                                <td><a target="_blank" href="${this._getModelURL(model)}">${model.name}</a></td> 
+                                                <td>${model.category}</td>
+                                                <td>${model.calibrated_region}</td>
+                                                <td>
+                                                ${Object.keys(model.output_files).filter((ioid) => {
+                                                    return matchVariables(this.pathway.response_variables, model.output_files[ioid].variables, false); // Partial match
+                                                })
+                                                .map((ioid) => { return model.output_files[ioid].name })
+                                                .join(", ")}
+                                                </td>
+                                            </tr>
+                                            `;
+                                        }
                                     })
                                 :
                                     html`
@@ -229,6 +261,20 @@ export class MintModels extends connect(store)(MintPathwayPage) {
                                         </td>
                                     </tr>
                                     `
+                                }
+                                ${(availableModels.length - regionModels.length) > 0 ? 
+                                    html`
+                                    <tr>
+                                        <td colspan="5" style="text-align:left; color: rgb(153, 153, 153);">
+                                            <a style="cursor:pointer" @click="${() => {this._showAllModels = !this._showAllModels}}">
+                                                ${!this._showAllModels ? "Show" : "Hide"} 
+                                                ${availableModels.length - regionModels.length} models
+                                                for other regions
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    `
+                                    : ""
                                 }
                             </tbody>
                         </table>
@@ -265,10 +311,14 @@ export class MintModels extends connect(store)(MintPathwayPage) {
         <wl-dialog class="comparison" fixed backdrop blockscrolling id="comparisonDialog">
             <table class="pure-table pure-table-striped">
                 <thead>
-                    <th></th>
+                    <th style="border-right:1px solid #EEE; font-size: 14px;">Model details</th>
                     ${this._modelsToCompare.map((model) => {
                         return html`
-                        <th><b>${model.name}</b></th>
+                        <th .style="width:${100/(this._modelsToCompare.length)}%">
+                            <a target="_blank" href="${this._getModelURL(model)}" style="font-weight: bold; font-size: 15px;">
+                                ${model.name}
+                            </a>
+                        </th>
                         `
                     })}
                 </thead>
@@ -276,7 +326,7 @@ export class MintModels extends connect(store)(MintPathwayPage) {
                     ${this._comparisonFeatures.map((feature) => {
                         return html`
                         <tr>
-                            <td><b>${feature.name}</b></td>
+                            <td style="border-right:1px solid #EEE"><b>${feature.name}</b></td>
                             ${this._modelsToCompare.map((model) => {
                                 return html`
                                     <td>${feature.fn(model)}</td>
@@ -292,9 +342,31 @@ export class MintModels extends connect(store)(MintPathwayPage) {
     }
 
     _getModelURL (model:Model) {
-        return this._regionid + '/models/explore/' + model.original_model + '/'
-               + model.model_version + '/' + model.model_configuration + '/'
-               + model.localname;
+        let url = this._regionid + '/models/explore/' + model.original_model;
+        if (model.model_version) {
+            url += '/' + model.model_version;
+            if (model.model_configuration) {
+                url += '/' + model.model_configuration;
+                if (model.localname) {
+                    url += '/' + model.localname;
+                }
+            }
+        }
+        return url;
+    }
+
+    _getModelSetupURL (model:Model) {
+        let url = this._regionid + '/models/configure/' + model.original_model;
+        if (model.model_version) {
+            url += '/' + model.model_version;
+            if (model.model_configuration) {
+                url += '/' + model.model_configuration;
+                if (model.localname) {
+                    url += '/' + model.localname;
+                }
+            }
+        }
+        return url;
     }
 
     _getSelectedModels() {
@@ -334,6 +406,7 @@ export class MintModels extends connect(store)(MintPathwayPage) {
     _selectPathwayModels() {
         let models = this._getSelectedModels();
         let model_ensembles:ModelEnsembleMap = this.pathway.model_ensembles || {};
+        let executable_ensemble_summary:IdMap<ExecutableEnsembleSummary> = this.pathway.executable_ensemble_summary || {};
 
         if (Object.keys(models).length < 1) {
             showNotification("selectOneModelNotification", this.shadowRoot!);
@@ -354,6 +427,12 @@ export class MintModels extends connect(store)(MintPathwayPage) {
                     })
                     delete model_ensembles[modelid];
                 }
+                if(executable_ensemble_summary[modelid]) {
+                    // Delete ensemble ids
+                    deleteAllPathwayEnsembleIds(this.scenario.id, this.pathway.id, modelid);
+                    // Remove executable summary
+                    delete executable_ensemble_summary[modelid];
+                }
             }
         });
 
@@ -364,57 +443,58 @@ export class MintModels extends connect(store)(MintPathwayPage) {
         });
 
 
-        this.pathway = {
+        let newpathway = {
             ...this.pathway,
             models: models,
             model_ensembles: model_ensembles
         }
-        this.pathway = createPathwayExecutableEnsembles(this.pathway);
 
         // Update notes
         let notes = (this.shadowRoot!.getElementById("notes") as HTMLTextAreaElement).value;
-        this.pathway.notes = {
-            ...this.pathway.notes!,
+        newpathway.notes = {
+            ...newpathway.notes!,
             models: notes
         };
-        this.pathway.last_update = {
-            ...this.pathway.last_update!,
+        newpathway.last_update = {
+            ...newpathway.last_update!,
+            parameters: null,
+            datasets: null,
             models: {
                 time: Date.now(),
                 user: this.user!.email
             } as StepUpdateInformation
         };        
 
-        updatePathway(this.scenario, this.pathway); 
+        updatePathway(this.scenario, newpathway); 
         
         this._editMode = false;
         showNotification("saveNotification", this.shadowRoot!);
     }
 
     _removePathwayModel(modelid:string) {
-        let model = this.pathway.models![modelid];
+        let newpathway = { ...this.pathway };
+        let model = newpathway.models![modelid];
         if(model) {
             if(confirm("Are you sure you want to remove this model ?")) {
-                let models:ModelMap = this.pathway.models || {};
-                let model_ensembles:ModelEnsembleMap = this.pathway.model_ensembles || {};
+                let models:ModelMap = newpathway.models || {};
+                let model_ensembles:ModelEnsembleMap = newpathway.model_ensembles || {};
                 delete models[modelid];
                 if(model_ensembles[modelid]) {
                     let data_ensembles = { ...model_ensembles[modelid] };
                     Object.keys(data_ensembles).map((inputid) => {
                         let datasets = data_ensembles[inputid].slice();
                         datasets.map((dsid) => {
-                            this.pathway = removeDatasetFromPathway(this.pathway, dsid, modelid, inputid);
+                            newpathway = removeDatasetFromPathway(newpathway, dsid, modelid, inputid);
                         })
                     })
                     delete model_ensembles[modelid];
                 }
-                this.pathway = {
-                    ...this.pathway,
+                newpathway = {
+                    ...newpathway,
                     models: models,
                     model_ensembles: model_ensembles
                 }
-                this.pathway = createPathwayExecutableEnsembles(this.pathway);
-                updatePathway(this.scenario, this.pathway);                   
+                updatePathway(this.scenario, newpathway);                   
             }
         }
     }
@@ -426,7 +506,7 @@ export class MintModels extends connect(store)(MintPathwayPage) {
             if(this._responseVariables && this._responseVariables.length > 0) {
                 //console.log("Querying model catalog for " + this._responseVariables);
                 this._dispatched = true;
-                store.dispatch(queryModelsByVariables(this._responseVariables));
+                store.dispatch(queryModelsByVariables(this._responseVariables, this._drivingVariables));
             }
         }       
     }
@@ -436,9 +516,15 @@ export class MintModels extends connect(store)(MintPathwayPage) {
         super.setRegionId(state);
         //let pathwayid = this.pathway ? this.pathway.id : null;
         super.setPathway(state);
+        
+        this._subregion = getUISelectedSubgoalRegion(state);
 
-        if(this.pathway && this.pathway.response_variables != this._responseVariables && !this._dispatched) {
+        if(this.pathway && 
+                this.pathway.response_variables != this._responseVariables && 
+                this.pathway.driving_variables != this._drivingVariables && 
+                !this._dispatched) {
             this._responseVariables = this.pathway.response_variables;
+            this._drivingVariables = this.pathway.driving_variables;
             this._queryModelCatalog();
             this._setEditMode(false);
         }

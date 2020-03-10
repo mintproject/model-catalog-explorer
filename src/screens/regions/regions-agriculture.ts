@@ -1,18 +1,22 @@
 
-import { html, customElement, css } from 'lit-element';
-import { PageViewElement } from '../../components/page-view-element';
-
-import { SharedStyles } from '../../styles/shared-styles';
-import { store } from '../../app/store';
+import { html, customElement, css, property } from 'lit-element';
+import { PageViewElement } from 'components/page-view-element';
 import { connect } from 'pwa-helpers/connect-mixin';
+import { store, RootState } from 'app/store';
 
-import '../../components/image-gallery'
+import { SharedStyles } from 'styles/shared-styles';
+
+import './regions-editor';
 
 @customElement('regions-agriculture')
-export class RegionsAgriculture extends connect(store)(PageViewElement) {
+export class RegionsAgriculture extends connect(store)(PageViewElement)  {
+//export class RegionsAgriculture extends PageViewElement {
+    @property({type: String})
+    public _tab: 'base' | 'woredas' = 'base';
 
     static get styles() {
         return [
+            SharedStyles,
             css `
             .cltrow wl-button {
                 padding: 2px;
@@ -30,25 +34,39 @@ export class RegionsAgriculture extends connect(store)(PageViewElement) {
             .content {
                 margin: 0 auto;
             }
-            `,
-            SharedStyles
+            `
         ];
     }
 
     protected render() {
-        let items = [{
-            label: "Land use map of the Pongo Basin in South Sudan",
-            src: "https://raw.githubusercontent.com/mintproject/EthiopiaDemo/master/PIHMtoAgri/map_Landuse.png"}]
+        let items = [];
+        if (this._regionid == 'south_sudan') {
+            items.push({
+                label: "Land use map of the Pongo Basin in South Sudan",
+                src: "https://raw.githubusercontent.com/mintproject/EthiopiaDemo/master/PIHMtoAgri/map_Landuse.png"
+            });
+        }
+
         return html`
         <div class="content">
+            <regions-editor active
+                style="--map-height: 450px;"
+                regionType="Agriculture"
+            ></regions-editor>
+
+            ${items.length > 0 ? html`
             <p>
-                This page is in progress, it will allow you to run tools to identify agricultural regions of interest.
-                Below are some example agricultural regions identified for South Sudan:
+                The following are agricultural areas of interest in this region.
             </p>
             <div style="width: 90%; margin: 0px auto;">
                 <image-gallery style="--width: 300px; --height: 160px;" .items="${items}"></image-gallery>
             </div>
-        </div>
-        `
+            ` : ''}
+        </div>        
+        `;
+    }
+
+    stateChanged(state: RootState) {
+        super.setRegion(state);
     }
 }
