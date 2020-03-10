@@ -193,9 +193,7 @@ const loadPage: ActionCreator<ThunkResult> =
 
   switch(page) {
     case 'home':
-      import('../screens/home/app-home').then((_module) => {
-        store.dispatch(explorerClearModel());
-      });
+      store.dispatch(explorerClearModel());
       break;    
     case 'about':
       import('./mint-about');
