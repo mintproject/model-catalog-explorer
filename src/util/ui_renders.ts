@@ -2,20 +2,20 @@ import { html } from "lit-element";
 import { StepUpdateInformation } from "../screens/modeling/reducers";
 import { VARIABLES } from "../offline_data/variable_list";
 
-export const renderVariables = () => {
+export const renderVariables = (readonly: boolean, response_callback: Function, driving_callback: Function) => {
     return html`
         <p>
-        Please select a driving and a response variable. A response variable indicates the kind of results that you're interested in. 
-        An optional driving variable indicates the kind of inputs that you want to use to drive the results. 
-        </p>        
+        Indicators are the variables or index that indicates the state of the system being modeled.
+        Adjustable parameters are the variables and interventions you are interested in changing to explore outcomes on the indicator.
+        </p>
         <div class="formRow">
             <div class="input_half">
-                <label>Response Variable</label>
-                ${renderResponseVariables("")}
+                <label>Indicators/Response of interest</label>
+                ${renderResponseVariables("", readonly, response_callback)}
             </div>  
             <div class="input_half">
-                <label>Driving Variable</label>
-                ${renderDrivingVariables("")}
+                <label>Adjustable Variables</label>
+                ${renderDrivingVariables("", readonly, driving_callback)}
             </div>                            
         </div>     
     `;
@@ -23,20 +23,19 @@ export const renderVariables = () => {
 
 export const renderNotifications = () => {
     return html`
-    <wl-snackbar id="formValuesIncompleteNotification" fixed backdrop>
+    <wl-snackbar id="formValuesIncompleteNotification" fixed backdrop disableFocusTrap>
         <wl-icon slot="icon">error</wl-icon>
         <span>Please fill in all the required values.</span>
     </wl-snackbar>
-
-    <wl-snackbar id="saveNotification" hideDelay="2000" fixed backdrop>
+    <wl-snackbar id="saveNotification" hideDelay="2000" fixed backdrop disableFocusTrap>
         <wl-icon slot="icon">save</wl-icon>
         <span>Saving...</span>
     </wl-snackbar>
-    <wl-snackbar id="deleteNotification" hideDelay="2000" fixed backdrop>
+    <wl-snackbar id="deleteNotification" hideDelay="2000" fixed backdrop disableFocusTrap>
         <wl-icon slot="icon">delete</wl-icon>
         <span>Deleting...</span>
     </wl-snackbar>   
-    <wl-snackbar id="runNotification" persistent fixed backdrop>
+    <wl-snackbar id="runNotification" hideDelay="2000" fixed backdrop>
         <wl-icon slot="icon">settings</wl-icon>
         <span>Sending runs...Please wait</span>
     </wl-snackbar>       
@@ -51,12 +50,11 @@ export const renderNotifications = () => {
     `;
 }
 
-export const renderResponseVariables = (variableid: string) => {
+export const renderResponseVariables = (variableid: string, readonly: boolean, callback: Function) => {
     return html`
-        <select name="response_variable">
-            <option value disabled selected>Select Response Variable</option>
-            ${Object.keys(VARIABLES['response variable']).map((categoryname) => {
-                let category = VARIABLES['response variable'][categoryname];
+        <select name="response_variable" ?disabled="${readonly}" @change=${callback}>
+            ${Object.keys(VARIABLES['indicators']).map((categoryname) => {
+                let category = VARIABLES['indicators'][categoryname];
                 return html`
                 <optgroup label="${categoryname}">
                 ${Object.keys(category).map((varid) => {
@@ -75,18 +73,21 @@ export const renderResponseVariables = (variableid: string) => {
     `;
 }
 
-export const renderDrivingVariables = (variableid: string) => {
+export const renderDrivingVariables = (variableid: string, readonly: boolean, callback: Function) => {
     return html`
-        <select name="driving_variable">
-            <option value disabled selected>Select Driving Variable</option>
+        <select name="driving_variable" ?disabled="${readonly}" @change=${callback}>
             <option value="">None</option>
-            ${Object.keys(VARIABLES['driving variable']).map((categoryname) => {
-                let category = VARIABLES['driving variable'][categoryname];
+            ${Object.keys(VARIABLES['adjustment_variables']).map((categoryname) => {
+                let category = VARIABLES['adjustment_variables'][categoryname];
                 return html`
                 <optgroup label="${categoryname}">
                 ${Object.keys(category).map((varid) => {
                     let stdname = category[varid]["SVO_name"];
                     let name = category[varid]["long_name"];
+                    let intervention = category[varid]["intervention"];
+                    if(intervention) {
+                        name += " (Intervention: " + intervention.name + ")";
+                    }
                     return html`
                         <option value="${stdname}" ?selected="${stdname==variableid}">
                             ${name}

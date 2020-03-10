@@ -11,8 +11,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 import { Reducer } from 'redux';
 import { RootAction } from './store';
 import { User } from 'firebase';
-import { UPDATE_PAGE, FETCH_USER, FETCH_USER_PREFERENCES } from './actions';
-
+import { UPDATE_PAGE, FETCH_USER, FETCH_USER_PROFILE, FETCH_MINT_CONFIG,
+         FETCH_MODEL_CATALOG_ACCESS_TOKEN, STATUS_MODEL_CATALOG_ACCESS_TOKEN} from './actions';
 
 export interface IdMap<T> {
   [id: string]: T
@@ -31,24 +31,60 @@ export interface AppState {
 }
 
 export interface UserPreferences {
-  wings: WingsPreferences
+  mint: MintPreferences,
+  modelCatalog: ModelCatalogPreferences,
+  profile?: UserProfile
+}
+
+export interface MintPreferences {
+  wings: WingsPreferences,
+  localex?: LocalExecutionPreferences,
+  execution_engine?: "wings" | "localex",
+  wings_api: string,
+  ensemble_manager_api: string,
+  ingestion_api: string,
+  visualization_url: string,
+  data_catalog_api: string,
+  model_catalog_api: string
 }
 
 export interface WingsPreferences {
   server: string,
-  export_url: string,
   domain: string,
   username: string,
   password: string,
-  storage: string,
-  dotpath: string,
-  onturl: string,
-  api: string
+  datadir: string,
+  dataurl: string
+  // The following is retrieved from wings itself
+  export_url?: string,
+  storage?: string,
+  dotpath?: string,
+  onturl?: string,
+}
+
+export interface LocalExecutionPreferences {
+  datadir: string,
+  dataurl: string,
+  logdir: string,
+  logurl: string,
+  codedir: string
+}
+
+type ModelCatalogStatus = 'LOADING' | 'DONE' | 'ERROR';
+export interface ModelCatalogPreferences {
+  username: string,
+  accessToken: string,
+  status: ModelCatalogStatus
+}
+
+export type UserProfile = {
+    preferredRegion: string
 }
 
 const INITIAL_STATE: AppState = {
   page: '',
-  subpage: ''
+  subpage: '',
+  prefs: {mint: null, modelCatalog: {} as ModelCatalogPreferences}
 };
 
 const app: Reducer<AppState, RootAction> = (state = INITIAL_STATE, action) => {
@@ -64,11 +100,30 @@ const app: Reducer<AppState, RootAction> = (state = INITIAL_STATE, action) => {
         ...state,
         user: action.user!
       };
-    case FETCH_USER_PREFERENCES:
+    case FETCH_USER_PROFILE:
+      let newPrefsWithProfile = { ...state.prefs, profile: action.profile };
       return {
         ...state,
-        prefs: action.prefs!
+        prefs: newPrefsWithProfile
       };
+    case FETCH_MINT_CONFIG:
+      let newPrefs = {...state.prefs, mint: action.prefs};
+      return {
+        ...state,
+        prefs: newPrefs
+      };
+    case FETCH_MODEL_CATALOG_ACCESS_TOKEN:
+      let newMCPrefs = { ...state.prefs.modelCatalog, accessToken: action.accessToken, status: 'DONE' } as ModelCatalogPreferences;
+      return {
+        ...state,
+        prefs: {...state.prefs, modelCatalog: newMCPrefs}
+      }
+    case STATUS_MODEL_CATALOG_ACCESS_TOKEN:
+      let newMCStatus = { ...state.prefs.modelCatalog, status: action.status } as ModelCatalogPreferences;
+      return {
+        ...state,
+        prefs: {...state.prefs, modelCatalog: newMCStatus}
+      }
     default:
       return state;
   }

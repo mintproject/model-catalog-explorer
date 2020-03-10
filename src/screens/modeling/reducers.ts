@@ -1,15 +1,23 @@
 import { Reducer } from "redux";
 import { RootAction } from "../../app/store";
-import { SCENARIOS_LIST, SCENARIO_DETAILS, SCENARIO_SUBSCRIPTION } from "./actions";
+import { SCENARIOS_LIST, SCENARIO_DETAILS, SCENARIO_SUBSCRIPTION, PATHWAY_SUBSCRIPTION, PATHWAY_DETAILS, PATHWAY_ENSEMBLES_LIST } from "./actions";
 import { Model } from "../models/reducers";
-import { Dataset } from "../datasets/reducers";
+import { Dataset, DataResource } from "../datasets/reducers";
 import { IdMap, IdNameObject } from "../../app/reducers";
-import { REGIONS_LIST } from "../regions/actions";
+import { REGIONS_LIST_TOP_REGIONS } from "../regions/actions";
 
 export interface ModelingState {
     scenarios?: ScenarioList
     scenario?: ScenarioDetails
+    pathway?: Pathway
+    ensembles?: ModelEnsembles
 }
+
+export interface EnsemblesWithStatus {
+    loading: boolean,
+    ensembles: ExecutableEnsemble[]
+}
+export type ModelEnsembles = Map<string, EnsemblesWithStatus[]>
 
 export interface ScenarioList {
     scenarioids: string[]
@@ -21,6 +29,7 @@ export interface Scenario extends IdNameObject {
     subregionid?: string
     dates: DateRange
     last_update?: string
+    last_update_user?: string
 }
 
 export interface DateRange {
@@ -31,21 +40,25 @@ export interface DateRange {
 export interface ScenarioDetails extends Scenario {
     goals: IdMap<Goal>
     subgoals: IdMap<SubGoal>
-    pathways: IdMap<Pathway>
-    unsubscribe?: Function    
+    unsubscribe?: Function
 }
 
-export interface Pathway extends IdNameObject {
+
+export interface PathwayInfo extends IdNameObject {
     dates?: DateRange
+}
+
+export interface Pathway extends PathwayInfo {
     driving_variables: string[]
     response_variables: string[]
     models?: ModelMap
     datasets?: DatasetMap
     model_ensembles?: ModelEnsembleMap
-    executable_ensembles?: ExecutableEnsemble[]
+    executable_ensemble_summary: IdMap<ExecutableEnsembleSummary>
     notes?: Notes
     last_update?: PathwayUpdateInformation
     visualizations?: Visualization[]
+    unsubscribe?: Function
 }
 
 export interface Visualization {
@@ -58,6 +71,7 @@ export interface Notes {
     models: string,
     datasets: string,
     parameters: string,
+    visualization: string,
     results: string
 }
 
@@ -89,8 +103,10 @@ export interface Goal extends IdNameObject {
 
 export interface SubGoal extends IdNameObject {
     dates?: DateRange,
+    response_variables: string[],
+    driving_variables: string[],
     subregionid?: string
-    pathwayids?: string[]
+    pathways?: IdMap<PathwayInfo>
 }
 
 // Mapping of model id to data ensembles
@@ -103,28 +119,53 @@ export interface DataEnsembleMap {
     [inputid: string]: string[]
 }
 
+export interface ExecutableEnsembleSummary {
+    workflow_name: string
+
+    submitted_for_execution: boolean
+    submission_time: number    
+    total_runs: number
+    submitted_runs: number
+    successful_runs: number
+    failed_runs: number
+
+
+    submitted_for_ingestion: boolean
+    fetched_run_outputs: number // Run data fetched for ingestion
+    ingested_runs: number // Run data ingested in the Visualization database
+
+    submitted_for_registration: boolean
+    registered_runs: number // Registered in the data catalog
+
+    submitted_for_publishing: boolean
+    published_runs: number // Published in the provenance catalog
+}
+
 export interface ExecutableEnsemble {
+    id: string
     modelid: string
     bindings: InputBindings
     runid?: string
-    status: "FAILED" | "SUCCESS" | "RUNNING",
+    submission_time: number
+    execution_engine?: "wings" | "localex"
+    status: "FAILURE" | "SUCCESS" | "RUNNING" | "WAITING",
     run_progress?: number // 0 to 100 (percentage done)
     results: any[] // Chosen results after completed run
     selected: boolean
 }
 
 export interface InputBindings {
-    [input: string]: string
+    [input: string]: string | DataResource
 }
 
 const INITIAL_STATE: ModelingState = {};
 
 const modeling: Reducer<ModelingState, RootAction> = (state = INITIAL_STATE, action) => {
     switch (action.type) {
-        case REGIONS_LIST:
+        case REGIONS_LIST_TOP_REGIONS:
             return {
                 ...state,
-                regions: action.list
+                regions: action.regions
             }        
         case SCENARIOS_LIST:
             return {
@@ -149,6 +190,34 @@ const modeling: Reducer<ModelingState, RootAction> = (state = INITIAL_STATE, act
                 ...state,
                 scenario: scenario
             }
+        case PATHWAY_SUBSCRIPTION: 
+            let pathway_sub = {
+                ...state.pathway,
+                unsubscribe: action.unsubscribe
+            } as Pathway
+            return {
+                ...state,
+                pathway: pathway_sub
+            }
+        case PATHWAY_DETAILS:
+            let pathway = {
+                ...action.details,
+                unsubscribe: state.pathway!.unsubscribe
+            } as Pathway            
+            return {
+                ...state,
+                pathway: pathway
+            }
+        case PATHWAY_ENSEMBLES_LIST: 
+            state.ensembles = { ...state.ensembles };
+            state.ensembles[action.modelid] = state.ensembles[action.modelid] || [];
+            state.ensembles[action.modelid] = {
+                loading: action.loading,
+                ensembles: action.ensembles
+            }
+            return {
+                ...state
+            };   
         default:
             return state;
     }

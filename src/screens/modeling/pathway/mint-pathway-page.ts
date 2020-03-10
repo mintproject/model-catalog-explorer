@@ -21,13 +21,12 @@ export class MintPathwayPage extends PageViewElement {
     protected prefs: UserPreferences | null = null;
 
     setPathway(state: RootState): Boolean {
-        let pathway: Pathway = getUISelectedPathway(state)!;
-        if(pathway && (pathway != this.pathway)) {
-            this.pathway = pathway;
-            return true;
+        let pathwayid = state.ui!.selected_pathwayid;
+        this.pathway = state.modeling.pathway;
+        if(state.modeling.pathway && state.modeling.pathway.id == pathwayid) {
+            return false;
         }
-        this.pathway = pathway;
-        return false;
+        return true;
     }
 
     setUser(state: RootState) {

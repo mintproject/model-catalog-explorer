@@ -18,16 +18,21 @@ import { store, RootState } from './store';
 
 // These are the actions needed by this element.
 import {
-  navigate, fetchUser, signOut, signIn, goToPage, fetchUserPreferences,
+  navigate, fetchUser, signOut, signIn, goToPage, fetchMintConfig,
 } from './actions';
-import { listTopRegions } from '../screens/regions/actions';
+import { listTopRegions, listSubRegions } from '../screens/regions/actions';
 
-import '../screens/modeling/modeling-home';
-import '../screens/models/model-explore/model-explore';
-import './mint-about';
+import { modelsGet, versionsGet, modelConfigurationsGet, modelConfigurationSetupsGet, processesGet, 
+         regionsGet, imagesGet } from 'model-catalog/actions';
 
 import { SharedStyles } from '../styles/shared-styles';
 import { showDialog, hideDialog, formElementsComplete } from '../util/ui_functions';
+import { User } from 'firebase';
+import '../screens/models/models-home';
+import '../screens/models/model-explore/model-explore';
+import './mint-about';
+import 'weightless/nav'
+import 'weightless/title'
 
 @customElement('mint-app')
 export class MintApp extends connect(store)(LitElement) {
@@ -38,6 +43,9 @@ export class MintApp extends connect(store)(LitElement) {
   private _page = '';
 
   @property({type: String})
+  private _subpage = '';
+
+  @property({type: String})
   private _selectedModel = '';
 
   @property({type:Boolean})
@@ -45,6 +53,9 @@ export class MintApp extends connect(store)(LitElement) {
 
   @property({type:Boolean})
   private _infoActive = true;
+
+  @property({type: Object})
+  private user!: User;
 
   _once = false;
 
@@ -100,27 +111,27 @@ export class MintApp extends connect(store)(LitElement) {
         margin-left: 0px;
       }
 
-      .breadcrumbs li.active {
+      .breadcrumbs a.active {
         background-color: #629b30;
         color: white;
       }
-      .breadcrumbs li.active:before {
+      .breadcrumbs a.active:before {
         border-color: #629b30;
         border-left-color: transparent;
       }
-      .breadcrumbs li.active:after {
+      .breadcrumbs a.active:after {
         border-left-color: #629b30;
       }
 
-      .breadcrumbs li:first {
+      .breadcrumbs a:first {
         background-color: #629b30;
         color: white;
       }
-      .breadcrumbs li:first:before {
+      .breadcrumbs a:first:before {
         border-color: #629b30;
         border-left-color: transparent;
       }
-      .breadcrumbs li:first:after {
+      .breadcrumbs a:first:after {
         border-left-color: #629b30;
       }
 
@@ -172,19 +183,41 @@ export class MintApp extends connect(store)(LitElement) {
             </wl-button>
         
             <ul class="breadcrumbs">
-              <li @click="${()=>goToPage('home')}"
+              <a href="/home"
                   class=${(this._page == 'home' ? 'active' : '')}>
                   <div style="vertical-align:middle">
                     Model catalog
                   </div>
-              </li>
+              </a>
               ${(this._selectedModel && !(this._page == 'home' || this._page == 'about'))?
-                    html`<li class="active">${this._selectedModel.split('/').pop()}</li>` : html``}
+                    html`<a class="active">${this._selectedModel.split('/').pop()}</a>` : html``}
             </ul>
 
         </div>
+
+        <div slot="right">
+        <wl-button flat inverted class="message-button ${this._page == 'configure' ? 'selected' : ''}" 
+                   @click="${() => goToPage('models/configure')}">
+            Configure model <wl-icon style="margin-left: 4px;">settings</wl-icon>
+        </wl-button>
+
+          ${this.user == null ? 
+            html`
+            <wl-button flat inverted @click="${this._showLoginWindow}">
+              LOGIN &nbsp;
+              <wl-icon alt="account">account_circle</wl-icon>
+            </wl-button>
+            `
+            :
+            html `
+            <wl-button flat inverted @click="${signOut}">
+              LOGOUT ${this.user.email}
+            </wl-button>
+            `
+          }
+        </div>
+
         <wl-button style="padding: 0px 5px;" flat inverted slot="right" @click="${()=>goToPage('about')}">
-          About
           <img style="margin-left: 6px;" height="40" src="/images/logo.png">
         </wl-button>
       </wl-nav>
@@ -208,7 +241,10 @@ export class MintApp extends connect(store)(LitElement) {
                 </div>
               </div>
               ` : html``}
-              <model-explorer class="page fullpage" style="height:100%;" ?active="${this._page != 'about'}"></model-explorer>
+              ${console.log(this._page, this._subpage)}
+              <model-explorer class="page fullpage" style="height:100%;"
+                              ?active="${this._page != 'about' && this._subpage != 'configure'}"></model-explorer>
+              <models-configure class="page fullpage" style="height:100%" ?active="${this._subpage == 'configure'}"></models-configure>
             </div>
           </div>
         </div>
@@ -276,6 +312,12 @@ export class MintApp extends connect(store)(LitElement) {
     store.dispatch(fetchUser());
     store.dispatch(fetchUserPreferences());
     store.dispatch(listTopRegions());*/
+        store.dispatch(modelsGet());
+        store.dispatch(versionsGet());
+        store.dispatch(modelConfigurationsGet());
+        store.dispatch(modelConfigurationSetupsGet());
+        store.dispatch(regionsGet());
+        store.dispatch(imagesGet());
   }
 
   protected updated(changedProps: PropertyValues) {
@@ -292,11 +334,10 @@ export class MintApp extends connect(store)(LitElement) {
 
   stateChanged(state: RootState) {
     this._page = state.app!.page;
+    this._subpage = state.app!.subpage;
     if (state.explorerUI && state.explorerUI.selectedModel != this._selectedModel) {
         this._selectedModel = state.explorerUI.selectedModel;
     }
-    /*if(regionid) {
-      this._selectedRegion = regionid.replace(/_/g, ' ').toUpperCase();
-    }*/
+    this.user = state.app!.user!;
   }
 }

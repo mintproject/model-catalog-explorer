@@ -1,14 +1,15 @@
 import { Action, ActionCreator } from 'redux';
 import { ScenarioList, Scenario, ScenarioDetails, 
-    Goal, Pathway, SubGoal, ExecutableEnsemble } from './reducers';
+    Goal, Pathway, SubGoal, ExecutableEnsemble, PathwayInfo } from './reducers';
 import { ThunkAction } from 'redux-thunk';
 import { RootState } from '../../app/store';
-import { db, fieldValue } from '../../config/firebase';
+import { db, fieldValue, auth } from '../../config/firebase';
 import { Dataset } from '../datasets/reducers';
 import { Model } from '../models/reducers';
 import { EXAMPLE_SCENARIOS_LIST_DATA, EXAMPLE_SCENARIO_DETAILS } from '../../offline_data/sample_scenarios';
 import { IdMap } from '../../app/reducers';
 import { OFFLINE_DEMO_MODE } from '../../app/actions';
+import { listEnsembles } from 'util/state_functions';
 
 export const SCENARIOS_LIST = 'SCENARIOS_LIST';
 export const SCENARIOS_ADD = 'SCENARIOS_ADD';
@@ -27,7 +28,8 @@ export const SUBGOALS_ADD = 'SUBGOALS_ADD';
 export const SUBGOALS_REMOVE = 'SUBGOALS_REMOVE';
 export const SUBGOALS_UPDATE = 'SUBGOALS_UPDATE';
 
-export const PATHWAYS_LIST = 'PATHWAYS_LIST';
+export const PATHWAY_DETAILS = 'PATHWAY_DETAILS';
+export const PATHWAY_SUBSCRIPTION = 'PATHWAY_SUBSCRIPTION';
 export const PATHWAYS_ADD = 'PATHWAYS_ADD';
 export const PATHWAYS_REMOVE = 'PATHWAYS_REMOVE';
 export const PATHWAYS_UPDATE = 'PATHWAYS_UPDATE';
@@ -41,6 +43,7 @@ export const PATHWAY_MODELS_REMOVE = 'PATHWAY_MODELS_REMOVE';
 export const PATHWAY_DATASETS_ADD = 'PATHWAY_DATASETS_ADD';
 export const PATHWAY_DATASETS_REMOVE = 'PATHWAY_DATASETS_REMOVE';
 
+export const PATHWAY_ENSEMBLES_LIST = 'PATHWAY_ENSEMBLES_LIST';
 export const PATHWAY_ENSEMBLES_ADD = 'PATHWAY_ENSEMBLES_ADD';
 export const PATHWAY_ENSEMBLES_REMOVE = 'PATHWAY_ENSEMBLES_REMOVE';
 export const PATHWAY_ENSEMBLES_RUN = 'PATHWAY_ENSEMBLES_RUN';
@@ -74,8 +77,11 @@ export interface PathwaysActionList extends Action<'PATHWAYS_LIST'> { scenarioid
 export interface PathwaysActionAdd extends Action<'PATHWAYS_ADD'> { item: Pathway, subgoalid: string, scenarioid: string };
 export interface PathwaysActionRemove extends Action<'PATHWAYS_REMOVE'> { id: string, scenarioid: string };
 export interface PathwaysActionUpdate extends Action<'PATHWAYS_UPDATE'> { item: Pathway, scenarioid: string };
+export interface PathwaysActionDetails extends Action<'PATHWAY_DETAILS'> { details: Pathway };
+export interface PathwaysActionSubscription extends Action<'PATHWAY_SUBSCRIPTION'> { unsubscribe: Function };
 
-export type PathwaysAction = PathwaysActionList | PathwaysActionAdd | PathwaysActionRemove | PathwaysActionUpdate;
+export type PathwaysAction = PathwaysActionList | PathwaysActionAdd | PathwaysActionRemove 
+    | PathwaysActionUpdate | PathwaysActionDetails | PathwaysActionSubscription;
 
 export interface PathwayVariablesActionAdd extends Action<'PATHWAY_VARIABLES_ADD'> { 
     item: string, pathwayid: string, scenarioid: string 
@@ -98,6 +104,12 @@ export interface PathwayDatasetsActionRemove extends Action<'PATHWAY_DATASETS_RE
     id: string, pathwayid: string, sceanarioid: string
 };
 
+export interface PathwayEnsemblesActionList extends Action<'PATHWAY_ENSEMBLES_LIST'> { 
+    pathwayid: string
+    modelid: string
+    loading: boolean
+    ensembles: ExecutableEnsemble[] 
+};
 export interface PathwayEnsemblesActionAdd extends Action<'PATHWAY_ENSEMBLES_ADD'> { 
     item: ExecutableEnsemble, pathwayid: string, sceanarioid: string
 };
@@ -107,10 +119,12 @@ export interface PathwayEnsemblesActionRemove extends Action<'PATHWAY_ENSEMBLES_
 export interface PathwayEnsemblesActionRun extends Action<'PATHWAY_ENSEMBLES_RUN'> { 
     id: string, pathwayid: string, sceanarioid: string
 };
+
 export type PathwayAction = PathwayVariablesActionAdd | PathwayVariablesActionRemove |
     PathwayModelsActionAdd | PathwayModelsActionRemove | 
     PathwayDatasetsActionAdd | PathwayDatasetsActionRemove |
-    PathwayEnsemblesActionAdd | PathwayEnsemblesActionRemove | PathwayEnsemblesActionRun;
+    PathwayEnsemblesActionAdd | PathwayEnsemblesActionRemove | PathwayEnsemblesActionRun | 
+    PathwayEnsemblesActionList;
 
 export type ModelingAction =  ScenariosAction | GoalsAction  | PathwaysAction | PathwayAction ;
 
@@ -178,30 +192,14 @@ export const getScenarioDetail: ActionCreator<DetailsThunkResult> = (scenarioid:
             if(!details)
                 return;
             details.id = doc.id;
-            Promise.all([
-                db.collection("scenarios/"+scenarioid+"/goals").get(),
-                db.collection("scenarios/"+scenarioid+"/subgoals").get(),
-                db.collection("scenarios/"+scenarioid+"/pathways").get()
-            ]).then( (values) => {
+            db.collection("scenarios/"+scenarioid+"/subgoals").get().then((subgoals) => {
                 details.goals = {};
                 details.subgoals = {};
-                details.pathways = {};
-                values[0].forEach((doc) => {
-                    var data = Object.assign({}, doc.data());
-                    data.id = doc.id;
-                    details.goals[doc.id] = data as Goal;
-                });
-                values[1].forEach((doc) => {
+                subgoals.forEach((doc) => {
                     var data = Object.assign({}, doc.data());
                     data.id = doc.id;
                     details.subgoals[doc.id] = data as SubGoal;
                 });
-                values[2].forEach((doc) => {
-                    var data = Object.assign({}, doc.data());
-                    data.id = doc.id;
-                    details.pathways[doc.id] = data as Pathway;
-                });
-
                 // Dispach scenario details on an edit
                 dispatch({
                     type: SCENARIO_DETAILS,
@@ -218,9 +216,120 @@ export const getScenarioDetail: ActionCreator<DetailsThunkResult> = (scenarioid:
     });
 };
 
+
+// Get Pathway details
+type PathwayDetailsThunkResult = ThunkAction<void, RootState, undefined, PathwaysActionDetails | PathwaysActionSubscription>;
+export const getPathway: ActionCreator<PathwayDetailsThunkResult> = (scenarioid: string, pathwayid: string) => (dispatch) => {
+    let unsubscribe = db.collection("scenarios/"+scenarioid+"/pathways").doc(pathwayid).onSnapshot({
+        complete: () => {},
+        error: (error) => {
+            // FIXME: Check error code (if permissions error, then unsubscribe)
+            console.log(error.code);
+            unsubscribe();
+        },
+        next: (doc) => {
+            if(!doc.exists) {
+                unsubscribe();
+                dispatch({
+                    type: PATHWAY_DETAILS,
+                    details: null
+                });
+                return;
+            }
+            var details = Object.assign({}, doc.data()) as Pathway;
+            if(!details)
+                return;
+            details.id = doc.id;
+            // TODO: Move datasets and ensembles to separate collections
+            // datasets/<dsid> => contains details about resources and metadata
+            // ensembles<ensid> => contains details about the ensemble: bindings and run details
+
+            // Dispach pathway details
+            dispatch({
+                type: PATHWAY_DETAILS,
+                details
+            });
+        }
+    });
+
+    // Dispatch unsubscribe function
+    dispatch({
+        type: PATHWAY_SUBSCRIPTION,
+        unsubscribe: unsubscribe
+    });
+};
+
+// List Pathway Runs
+type ListEnsemblesThunkResult = ThunkAction<void, RootState, undefined, PathwayEnsemblesActionList>;
+export const fetchPathwayEnsembles: ActionCreator<ListEnsemblesThunkResult> = 
+        (pathwayid: string, modelid: string, ensembleids: string[]) => (dispatch) => {
+
+    
+    dispatch({
+        type: PATHWAY_ENSEMBLES_LIST,
+        pathwayid: pathwayid,
+        modelid: modelid,
+        ensembles: null,
+        loading: true
+    });
+
+    listEnsembles(ensembleids).then((ensembles) => {
+        dispatch({
+            type: PATHWAY_ENSEMBLES_LIST,
+            pathwayid: pathwayid,
+            modelid: modelid,
+            loading: false,
+            ensembles
+        })
+    });
+};
+
+export const setPathwayEnsembleIds = (scenarioid: string, pathwayid: string, 
+        modelid, batchid: number, ensembleids: string[]) : Promise<void> => {
+    let pathwayEnsembleIdsRef = db.collection("scenarios").doc(scenarioid).collection("pathways").doc(pathwayid).collection("ensembleids");
+    let docid = modelid.replace(/.+\//, '') + "_" + batchid;
+    let data = {
+        modelid: modelid,
+        ensemble_ids: ensembleids
+    }
+    return pathwayEnsembleIdsRef.doc(docid).set(data);
+}
+
+export const deleteAllPathwayEnsembleIds = async (scenarioid: string, pathwayid: string, modelid: string) => {
+    let pathwayEnsembleIdsRef = db.collection("scenarios").doc(scenarioid).collection("pathways").doc(pathwayid).collection("ensembleids");
+    let queryRef = null;
+    if(modelid) {
+        queryRef = pathwayEnsembleIdsRef.where("modelid", "==", modelid);
+    }
+    else {
+        queryRef = pathwayEnsembleIdsRef;
+    }
+    queryRef.get().then((snapshot) => {
+        snapshot.forEach((doc) => {
+            doc.ref.delete();
+        })
+    })
+}
+
+export const getAllPathwayEnsembleIds = async (scenarioid: string, pathwayid: string,
+        modelid: string) : Promise<string[]> => {
+    let pathwayEnsembleIdsRef = db.collection("scenarios").doc(scenarioid).collection("pathways").doc(pathwayid).collection("ensembleids")
+        .where("modelid", "==", modelid);
+
+    return pathwayEnsembleIdsRef.get().then((snapshot) => {
+        let ensembleids = [];
+        snapshot.forEach((doc) => {
+            ensembleids = ensembleids.concat(doc.data().ensemble_ids);
+        })
+        return ensembleids;
+    });
+}
+
 // Add Scenario
 export const addScenario = (scenario:Scenario) =>  {
     let scenarioRef = db.collection("scenarios").doc();
+    scenario.last_update = Date.now().toString();
+    scenario.last_update_user = auth.currentUser.email;    
     scenarioRef.set(scenario);
     return scenarioRef.id;
 };
@@ -249,9 +358,14 @@ export const addSubGoal = (scenario:Scenario, goalid:string, subgoal: SubGoal) =
 // Add Pathway
 export const addPathway = (scenario:Scenario, subgoalid: string, pathway:Pathway) =>  {
     let pathwayRef = db.collection("scenarios/"+scenario.id+"/pathways").doc();
+    let pathwayinfo = {
+        id: pathwayRef.id,
+        name: pathway.name,
+        dates: pathway.dates
+    };
     Promise.all([
         db.collection("scenarios/"+scenario.id+"/subgoals").doc(subgoalid).update({
-            pathwayids: fieldValue.arrayUnion(pathwayRef.id)
+            [`pathways.${pathwayinfo.id}`]: pathwayinfo
         }),
         pathwayRef.set(pathway)
     ])
@@ -266,7 +380,10 @@ export const addGoalFull = (scenario:Scenario, goal: Goal, subgoal: SubGoal, pat
     let subgoalRef = db.collection("scenarios/"+scenario.id+"/subgoals").doc();
     let pathwayRef = db.collection("scenarios/"+scenario.id+"/pathways").doc();
     goal.subgoalids = [subgoalRef.id];
-    subgoal.pathwayids = [pathwayRef.id];
+    subgoal.pathways[pathwayRef.id] = {
+        id: pathwayRef.id,
+        name: pathway.name ? pathway.name : subgoal.name
+    };
 
     Promise.all([
         pathwayRef.set(pathway),
@@ -282,16 +399,22 @@ export const addGoalFull = (scenario:Scenario, goal: Goal, subgoal: SubGoal, pat
 export const addSubGoalFull = (scenario:Scenario, goalid: string, subgoal: SubGoal, pathway: Pathway) => {
     let subgoalRef = db.collection("scenarios/"+scenario.id+"/subgoals").doc();
     let pathwayRef = db.collection("scenarios/"+scenario.id+"/pathways").doc();
-    subgoal.pathwayids = [pathwayRef.id];
-
-    Promise.all([
-        db.collection("scenarios/"+scenario.id+"/goals").doc(goalid).update({
-            subgoalids: fieldValue.arrayUnion(subgoalRef.id)
-        }),
+    subgoal.pathways[pathwayRef.id] = {
+        id: pathwayRef.id,
+        name: pathway.name ? pathway.name : subgoal.name
+    };
+    let promises = [
         pathwayRef.set(pathway),
         subgoalRef.set(subgoal)
-    ])
-    .then(() => updateScenario(scenario));
+    ];
+    if(goalid) {
+        promises.push(
+            db.collection("scenarios/"+scenario.id+"/goals").doc(goalid).update({
+                subgoalids: fieldValue.arrayUnion(subgoalRef.id)
+            })
+        );
+    }
+    Promise.all(promises).then(() => updateScenario(scenario));
 
     return subgoalRef.id;
 }
@@ -299,10 +422,13 @@ export const addSubGoalFull = (scenario:Scenario, goalid: string, subgoal: SubGo
 // Update Scenario
 export const updateScenario = (scenario: Scenario) =>  {
     let scenarioRef = db.collection("scenarios").doc(scenario.id);
-    scenario.last_update = Date.now().toString();
-    if(!scenario.subregionid)
-        scenario.subregionid = null;
-    scenarioRef.set(scenario);
+    if(auth.currentUser) {
+        scenario.last_update = Date.now().toString();
+        scenario.last_update_user = auth.currentUser.email;
+        if(!scenario.subregionid)
+            scenario.subregionid = null;
+        scenarioRef.set(scenario);
+    }
 };
 
 // Update Goal
@@ -319,17 +445,77 @@ export const updateSubGoal = (scenario: Scenario, subgoal: SubGoal) =>  {
 
 // Update Pathway
 export const updatePathway = (scenario: Scenario, pathway: Pathway) =>  {
+    let npathway = Object.assign({}, pathway);
+    delete npathway.unsubscribe;
     let pathwayRef = db.collection("scenarios/"+scenario.id+"/pathways").doc(pathway.id);
     console.log(scenario.id + " ---- update pathway: " + pathway.id);
-    pathwayRef.set(pathway).then(() => updateScenario(scenario));
+    //console.log(pathway);
+    return pathwayRef.set(npathway); //.then(() => updateScenario(scenario));
 };
+
+export const updatePathwayInfo = (scenario: Scenario, subgoalid: string, pathwayinfo: PathwayInfo) => {
+    let pathwayRef = db.collection("scenarios/"+scenario.id+"/pathways").doc(pathwayinfo.id);
+    Promise.all([
+        db.collection("scenarios/"+scenario.id+"/subgoals").doc(subgoalid).update({
+            [`pathways.${pathwayinfo.id}`]: pathwayinfo
+        }),
+        pathwayRef.set(pathwayinfo, {merge: true})
+    ])
+    .then(() => updateScenario(scenario));
+}
+
+export const updatePathwayVariables = (scenarioid: string, pathwayid: string, 
+        driving_variables: string[], response_variables: string[]) =>  {
+    let pathwayRef = db.collection("scenarios/"+scenarioid+"/pathways").doc(pathwayid);
+    return pathwayRef.set({
+        driving_variables: driving_variables,
+        response_variables: response_variables
+    }, {merge: true});
+};
+
+export const updatePathwayFromPathwayInformation = (scenarioid: string, pathwayid: string, pathwayinfo: PathwayInfo) => {
+    let pathwayRef = db.collection("scenarios/"+scenarioid+"/pathways").doc(pathwayinfo.id);
+    return pathwayRef.set(pathwayinfo, {merge: true});
+}
+
+// Add Ensembles
+export const addPathwayEnsembles = (ensembles: ExecutableEnsemble[]) => {
+    let ensemblesRef = db.collection("ensembles");
+    // Read all docs (to check if they exist or not)
+    let readpromises = [];
+    ensembles.map((ensemble) => {
+        readpromises.push(ensemblesRef.doc(ensemble.id).get());
+    });
+    let batch = db.batch();
+    let i = 0;
+    return Promise.all(readpromises).then((docs) => {
+        docs.map((curdoc: firebase.firestore.DocumentSnapshot) => {
+            // If doc doesn't exist, write ensemble
+            let ensemble = ensembles[i++];
+            //if(!curdoc.exists)
+            batch.set(curdoc.ref, ensemble);
+        })
+        return batch.commit();
+    })
+}
+
+// Update Pathway Ensembles
+export const updatePathwayEnsembles = (ensembles: ExecutableEnsemble[]) => {
+    let ensemblesRef = db.collection("ensembles");
+    let batch = db.batch();
+    let i = 0;
+    ensembles.map((ensemble) => {
+        batch.update(ensemblesRef.doc(ensemble.id), ensemble);
+    })
+    return batch.commit();
+}
 
 // Delete Scenario
 export const deleteScenario = (scenario:Scenario) =>  {
     let scenarioRef = db.collection("scenarios").doc(scenario.id);
-    _deleteCollection(scenarioRef.collection("goals"));
-    _deleteCollection(scenarioRef.collection("subgoals"));
-    _deleteCollection(scenarioRef.collection("pathways"));
+    _deleteCollection(scenarioRef.collection("goals"), null);
+    _deleteCollection(scenarioRef.collection("subgoals"), null);
+    _deleteCollection(scenarioRef.collection("pathways"), "ensembleids");
     return scenarioRef.delete();
 };
 
@@ -342,27 +528,37 @@ export const deleteGoal = (scenario:Scenario, goalid: string) =>  {
 // Delete SubGoal
 export const deleteSubGoal = (scenario:Scenario, goalid:string, subgoalid: string) =>  {
     let subgoalRef = db.collection("scenarios/"+scenario.id+"/subgoals").doc(subgoalid);
-    subgoalRef.delete();
-    db.collection("scenarios/"+scenario.id+"/goals").doc(goalid).update({
-        subgoalids: fieldValue.arrayRemove(subgoalid)
-    }).then(() => updateScenario(scenario));
+    if(goalid) {
+        db.collection("scenarios/"+scenario.id+"/goals").doc(goalid).update({
+            subgoalids: fieldValue.arrayRemove(subgoalid)
+        });
+    }
+    subgoalRef.delete().then(() => updateScenario(scenario));
 };
 
 // Delete Pathway
-export const deletePathway = (scenario:Scenario, subgoalid: string, pathwayid:string) =>  {
-    let pathwayRef = db.collection("scenarios/"+scenario.id+"/pathways").doc(pathwayid);
-    pathwayRef.delete();
+export const deletePathway = (scenario:Scenario, subgoalid: string, pathway:PathwayInfo) =>  {
+    deleteAllPathwayEnsembleIds(scenario.id, pathway.id, null);
+    
+    let pathwayRef = db.collection("scenarios/"+scenario.id+"/pathways").doc(pathway.id);
+    pathwayRef.delete()
     db.collection("scenarios/"+scenario.id+"/subgoals").doc(subgoalid).update({
-        pathwayids: fieldValue.arrayRemove(pathwayid)
-    }).then(() => updateScenario(scenario));
+        [`pathways.${pathway.id}`]: fieldValue.delete()
+    }).then(() => updateScenario(scenario));;
 };
 
 /* Helper Function */
 
-const _deleteCollection = (collRef: firebase.firestore.CollectionReference) => {
+const _deleteCollection = (collRef: firebase.firestore.CollectionReference, subCollectionName: string) => {
     collRef.get().then((querySnapshot) => {
         querySnapshot.forEach((doc) => {
+            // Do a recursive delete if doc has a subcollection
+            if(subCollectionName) {
+                let subCollRef = doc.ref.collection(subCollectionName);
+                _deleteCollection(subCollRef, null);
+            }
+            // Delete document inside the collection
             doc.ref.delete();
         });
-    });    
+    });
 }
