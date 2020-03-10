@@ -975,7 +975,8 @@ export class ModelView extends connect(store)(PageViewElement) {
                         ${this._calibrationMetadata[0].fundS && this._configMetadata[0].fundS != this._calibrationMetadata[0].fundS? 
                             html`<wl-text><b>Funding Source:</b> ${this._configMetadata[0].fundS} </wl-text>` : ''}
                         ${this._calibrationMetadata[0].regionName && 
-                          this._calibrationMetadata[0].regionName != this._configMetadata[0].regionName ?
+                          (!this._configMetadata[0] || !this._configMetadata[0].regionName ||
+                          this._calibrationMetadata[0].regionName != this._configMetadata[0].regionName) ?
                             html`<li><b>Region:</b> ${this._calibrationMetadata[0].regionName}</li>`: ''}
 
                         ${(this._calibrationMetadata[0].tIValue && this._calibrationMetadata[0].tIUnits && 
