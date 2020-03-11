@@ -16,8 +16,10 @@ export const isSubregion = (parentRegionId:string, region:Region) => {
 
 export const isEmpty = (obj:object) => Object.keys(obj).length === 0;
 
-export const taggedAs = (obj:object, tag:string) => {
-    return obj && obj['tag'] && obj['tag'].length > 0 && obj['tag'][0] === tag;
+export const taggedAs = (obj:object, tag:string) : boolean => {
+    if (obj && obj['tag'] && obj['tag'].length > 0 && obj['tag'][0] === tag) 
+        return true;
+    return false;
 }
 
 export const sortVersions = (ver1:SoftwareVersion, ver2:SoftwareVersion) => {

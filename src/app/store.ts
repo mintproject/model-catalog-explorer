@@ -70,7 +70,8 @@ export interface RootState {
 }
 
 export type RootAction = AppAction | ModelingAction | ModelsAction | DatasetsAction | ModelCatalogAction |
-                         RegionsAction | UIAction | ApiAction | ExplorerUIAction;
+                         RegionsAction | UIAction | ApiAction | ExplorerUIAction | EmulatorsAction |
+                         DExplorerUIAction ;
 
 // Sets up a Chrome extension for time travel debugging.
 // See https://github.com/zalmoxisus/redux-devtools-extension for more information.

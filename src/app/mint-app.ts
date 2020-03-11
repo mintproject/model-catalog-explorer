@@ -256,7 +256,7 @@ export class MintApp extends connect(store)(LitElement) {
         <div slot="right">
         <wl-button flat inverted class="message-button ${this._subpage == 'configure' ? 'selected' : ''}" 
                    @click="${this._onConfigureClick}">
-            Configure model <wl-icon style="margin-left: 4px;">settings</wl-icon>
+            Configure models <wl-icon style="margin-left: 4px;">settings</wl-icon>
         </wl-button>
 
           ${this.user == null ? 

@@ -24,6 +24,9 @@ export const modelsGet: ActionThunk<Promise<IdMap<Model>>, MCAModelsAdd> = () =>
             let req : Promise<Model[]> = api.modelsGet({username: DEFAULT_GRAPH});
             req.then((resp:Model[]) => {
                 let data : IdMap<Model> = resp.reduce(idReducer, {});
+                /* FIXME: hack to no show kimetrica */
+                if (data['https://w3id.org/okn/i/mint/KIMETRICA_LAND_USE']) 
+                    delete data['https://w3id.org/okn/i/mint/KIMETRICA_LAND_USE'];
                 dispatch({
                     type: MODELS_ADD,
                     payload: data

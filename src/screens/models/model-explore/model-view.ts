@@ -552,7 +552,7 @@ export class ModelView extends connect(store)(PageViewElement) {
                         ${this._model.dateP? html`<wl-text><b>• Publication date:</b> ${ this._model.dateP }</wl-text>` :''}
                         ${this._model.referenceP? html`<wl-text><b>• Preferred citation:</b> <i>${ this._model.referenceP }<i></wl-text>` :''}
                         ${this._model.doc? html`<wl-text>
-                            <b>• Documentation:</b>
+                            <b>• Technical documentation:</b>
                             <a target="_blank" href="${this._model.doc}">
                                 ${this._model.doc.split('/').pop() || this._model.doc}
                             </a>

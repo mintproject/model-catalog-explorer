@@ -191,7 +191,7 @@ export class ModelsTree extends connect(store)(PageViewElement) {
                             ${(version.hasConfiguration || [])
                                 .filter(c => !!c.id)
                                 .map((c) => this._configs[c.id])
-                                .sort(sortConfigurations)
+                                .sort((cfg1, cfg2) => sortConfigurations(cfg2, cfg1))
                                 .map((config : ModelConfiguration) => html`
                             <li>
                                 ${config.tag ? config.tag.map((tag:string) => html`<span class="tag ${tag}">${tag}</span>`) : ''}
@@ -203,9 +203,9 @@ export class ModelsTree extends connect(store)(PageViewElement) {
                                     ${(config.hasSetup || [])
                                         .map((s:any) => this._setups[s.id])
                                         .filter(visibleSetup)
-                                        .sort(sortSetups)
+                                        .sort((setup1, setup2) => sortSetups(setup2, setup1))
                                         .map((setup : ModelConfigurationSetup) => html`
-                                    <li>
+                                    <li style="list-style: disc;">
                                         ${setup.tag ? setup.tag.map((tag:string) => html`<span class="tag ${tag}">${tag}</span>`) : ''}
                                         <a class="setup" @click="${()=>{this._select(model, version, config, setup)}}"
                                            ?selected="${this._selectedSetup === setup.id}">

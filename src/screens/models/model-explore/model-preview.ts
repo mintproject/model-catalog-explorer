@@ -349,11 +349,21 @@ export class ModelPreview extends connect(store)(PageViewElement) {
                                                                     lastConfig = cfg;
                                                                     lastVersion = ver;
                                                                 } else {
-                                                                    let s_ver = getLatestVersion(lastVersion, ver);
-                                                                    if (s_ver != lastVersion) {
+                                                                    if (lastConfig === cfg) {
                                                                         lastSetup = setup;
-                                                                        lastConfig = cfg;
-                                                                        lastVersion = ver;
+                                                                    } else if (lastVersion === ver) {
+                                                                        let lcfg = getLatestConfiguration(lastConfig, cfg);
+                                                                        if (lcfg === cfg) {
+                                                                            lastConfig = cfg;
+                                                                            lastSetup = setup;
+                                                                        }
+                                                                    } else {
+                                                                        let lver = getLatestVersion(lastVersion, ver);
+                                                                        if (lver === ver) {
+                                                                            lastVersion = ver;
+                                                                            lastConfig = cfg;
+                                                                            lastSetup = setup;
+                                                                        }
                                                                     }
                                                                 }
                                                                 return true
