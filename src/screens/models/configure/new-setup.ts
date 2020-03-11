@@ -18,6 +18,7 @@ import { sortByPosition, createUrl, renderExternalLink, renderParameterType } fr
 import { IdMap } from 'app/reducers';
 import { Person, Parameter, DatasetSpecification, Process, SampleResource, SampleCollection,
          Region, Model, SoftwareVersion, ModelConfiguration, ModelConfigurationSetup } from '@mintproject/modelcatalog_client';
+import { User } from 'firebase';
 
 import "weightless/slider";
 import "weightless/progress-spinner";
@@ -36,6 +37,9 @@ import { ModelsConfigureRegion } from './region';
 
 @customElement('models-new-setup')
 export class ModelsNewSetup extends connect(store)(PageViewElement) {
+    @property({type: Object})
+    private user!: User;
+
     @property({type: Object})
     private _model: Model;
 
@@ -395,7 +399,17 @@ export class ModelsNewSetup extends connect(store)(PageViewElement) {
             <tr>
                 <td>Software Image:</td>
                 <td>
-                    <span class="software-image">${this._softwareImage ? this._softwareImage.label : 'No software image'}</span>
+                    ${this._setup.hasSoftwareImage ? 
+                    ((this._softwareImage && Object.keys(this._softwareImage).length > 0) ?
+                        html`<span class="software-image">
+                            <a target="_blank"
+                               href="https://hub.docker.com/r/${this._softwareImage.label[0].split(':')[0]}/tags">
+                                ${this._softwareImage.label}
+                            </a>
+                        </span>`
+                        : html`${this._setup.hasSoftwareImage[0]['id']} ${this._softwareImageLoading ?
+                            html`<loading-dots style="--width: 20px"></loading-dots>`: ''}`)
+                    : 'No software image'}
                 </td>
             </tr>
 
@@ -415,7 +429,6 @@ export class ModelsNewSetup extends connect(store)(PageViewElement) {
                         <span class="grid">
                             <span style="margin-right: 30px; text-decoration: underline;">${this._grid.label}</span>
                             <span style="font-style: oblique; color: gray;">${this._grid.type.filter(g => g != 'Grid')}</span>
-                            <wl-icon style="margin-left:10px">edit</wl-icon>
                             <br/>
                             <div style="display: flex; justify-content: space-between;">
                                 <span style="font-size: 12px;">Spatial resolution:</span>
@@ -445,7 +458,6 @@ export class ModelsNewSetup extends connect(store)(PageViewElement) {
                                 <span> 
                                     ${this._timeInterval.intervalValue}
                                     ${this._timeInterval.intervalUnit ? this._timeInterval.intervalUnit[0].label : ''}
-                                    <wl-icon style="margin-left:10px; --icon-size:  16px; cursor: pointer; vertical-align: middle;">edit</wl-icon>
                                 </span>
                             </span>
                             <span style="font-style: oblique; color: gray;"> ${this._timeInterval.description} </span>
@@ -616,7 +628,7 @@ export class ModelsNewSetup extends connect(store)(PageViewElement) {
             <wl-button @click="${this._cancel}" style="margin-right: 1em;" flat inverted>
                 <wl-icon>cancel</wl-icon>&ensp;Discard changes
             </wl-button>
-            <wl-button @click="${this._saveNewSetup}" disabled>
+            <wl-button @click="${this._saveNewSetup}" ?disabled=${!this.user}>
                 <wl-icon>save</wl-icon>&ensp;Save
             </wl-button>
         </div>
@@ -759,6 +771,7 @@ export class ModelsNewSetup extends connect(store)(PageViewElement) {
     }
 
     stateChanged(state: RootState) {
+        this.user = state.app!.user!;
         if (state.explorerUI) {
             let ui = state.explorerUI;
             // check whats changed

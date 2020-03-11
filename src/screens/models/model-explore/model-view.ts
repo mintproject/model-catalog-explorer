@@ -557,6 +557,7 @@ export class ModelView extends connect(store)(PageViewElement) {
                                 ${this._model.doc.split('/').pop() || this._model.doc}
                             </a>
                         </wl-text>` :''}
+                        ${this._model.keywords? html`<wl-text><b>• Keywords:</b> ${ this._model.keywords.join(', ') }</wl-text>` :''}
                     </div>
                     ${this._renderSelectors()}
                 </div>
@@ -974,8 +975,8 @@ export class ModelView extends connect(store)(PageViewElement) {
                             html`<li><b>Parameter assignment method:</b> ${this._calibrationMetadata[0].paramAssignMethod}</li>`: ''}
                         ${this._calibrationMetadata[0].fundS && this._configMetadata[0].fundS != this._calibrationMetadata[0].fundS? 
                             html`<wl-text><b>Funding Source:</b> ${this._configMetadata[0].fundS} </wl-text>` : ''}
-                        ${this._calibrationMetadata[0].regionName && 
-                          (!this._configMetadata[0] || !this._configMetadata[0].regionName ||
+                        ${this._calibrationMetadata[0].regionName && (
+                          !this._configMetadata || this._configMetadata.length < 1 || !this._configMetadata[0].regionName ||
                           this._calibrationMetadata[0].regionName != this._configMetadata[0].regionName) ?
                             html`<li><b>Region:</b> ${this._calibrationMetadata[0].regionName}</li>`: ''}
 
@@ -1428,14 +1429,16 @@ export class ModelView extends connect(store)(PageViewElement) {
     }
 
     updated () {
-        if (this._versions) {
-            this._updateConfigSelector();
-            this._updateCalibrationSelector();
-        }
-        if (this._tab == 'example' && this._model.example) {
-            let example = this.shadowRoot.getElementById('mk-example');
-            if (example) {
-                example.innerHTML = marked(this._model.example);
+        if (this._model) {
+            if (this._versions) {
+                this._updateConfigSelector();
+                this._updateCalibrationSelector();
+            }
+            if (this._tab == 'example' && this._model.example) {
+                let example = this.shadowRoot.getElementById('mk-example');
+                if (example) {
+                    example.innerHTML = marked(this._model.example);
+                }
             }
         }
         /* HTML description are not working

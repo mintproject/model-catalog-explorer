@@ -23,11 +23,15 @@ import "weightless/checkbox";
 import 'components/loading-dots'
 import { Person } from '@mintproject/modelcatalog_client';
 import { Textfield } from 'weightless/textfield';
+import { User } from 'firebase';
 
 let identifierId : number = 1;
 
 @customElement('models-configure-person')
 export class ModelsConfigurePerson extends connect(store)(PageViewElement) {
+    @property({type: Object})
+    private user!: User;
+
     @property({type: Boolean})
     private _new : boolean = false;
 
@@ -154,8 +158,12 @@ export class ModelsConfigurePerson extends connect(store)(PageViewElement) {
                             <wl-icon class="custom-checkbox">${this._selected[person.id] ? 'check_box' : 'check_box_outline_blank'}</wl-icon>
                             <span class="${this._selected[person.id] ? 'bold' : ''}">${person.label ? person.label : person.id}</span>
                         </label>
-                        <wl-button @click="${() => this._edit(person.id)}" flat inverted><wl-icon>edit</wl-icon></wl-button>
-                        <wl-button @click="${() => this._delete(person.id)}" flat inverted><wl-icon class="warning">delete</wl-icon></wl-button>
+                        <wl-button @click="${() => this._edit(person.id)}" flat inverted ?disabled=${!this.user}>
+                            <wl-icon>edit</wl-icon>
+                        </wl-button>
+                        <wl-button @click="${() => this._delete(person.id)}" flat inverted ?disabled=${!this.user}>
+                            <wl-icon class="warning">delete</wl-icon>
+                        </wl-button>
                     </div>
                 `)}
                 ${this._loading ? html`<div style="text-align: center;"><wl-progress-spinner></wl-progress-spinner></div>` : ''}
@@ -166,11 +174,11 @@ export class ModelsConfigurePerson extends connect(store)(PageViewElement) {
             <div slot="footer">
                 <wl-button @click="${this._cancel}" style="margin-right: 5px;" inverted flat ?disabled="${this._waiting}">Cancel</wl-button>
                 ${this._new ? html`
-                <wl-button @click="${this._onCreateAuthor}" class="submit" ?disabled="${this._waiting}">
+                <wl-button @click="${this._onCreateAuthor}" class="submit" ?disabled="${!this.user || this._waiting}">
                     Save & Select ${this._waiting ? html`<loading-dots style="--width: 20px; margin-left: 4px;"></loading-dots>` : ''}
                 </wl-button>`
                 : (selectedPerson ? html`
-                <wl-button @click="${this._onEditAuthor}" class="submit" ?disabled="${this._waiting}">
+                <wl-button @click="${this._onEditAuthor}" class="submit" ?disabled="${!this.user || this._waiting}">
                     Save & Select ${this._waiting ? html`<loading-dots style="--width: 20px; margin-left: 4px;"></loading-dots>` : ''}
                 </wl-button>`
                 : html`
@@ -277,6 +285,7 @@ export class ModelsConfigurePerson extends connect(store)(PageViewElement) {
     }
 
     stateChanged(state: RootState) {
+        this.user = state.app!.user!;
         if (state.modelCatalog) {
             let db = state.modelCatalog;
             this._persons = db.persons;
