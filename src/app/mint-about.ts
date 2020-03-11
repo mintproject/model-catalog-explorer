@@ -66,13 +66,21 @@ export class MintAbout extends PageViewElement {
                     If several software configurations are available for a particular model version, the application will 
                     display them side by side to enable comparison.
                 </p>
+                <p>
+                    The following video is a quick introduction to the model catalog capabilities:
+                </p>
+                <div style="text-align: center;">
+                    <iframe width="560" height="315" 
+                     src="https://www.youtube.com/embed/C9rxGT2k9is" frameborder="0"
+                     allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                </div>
+                <br/>
+
                 <p> 
                     The Model Explorer is maintained in a 
                     <a href="https://github.com/mintproject/model-catalog-explorer" target="_blank">GitHub repository</a>,
                     and it is currently optimized for the Chrome browser.
                 </p>
-
-                <br/>
                 <p>
                     The development of the MINT Model Explorer was led by Daniel Garijo, and implemented by Hernán
                     Vargas, Varun Ratnakar, Dhruv Pattel, Shreyas Kolpe, Rohit Mayura and Yash Dholakia.

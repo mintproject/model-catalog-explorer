@@ -263,4 +263,3 @@ const updatePage: ActionCreator<AppActionUpdatePage> = (page: string, subpage: s
     subpage
   };
 };
-

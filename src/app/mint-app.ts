@@ -28,6 +28,7 @@ import { modelsGet, versionsGet, modelConfigurationsGet, modelConfigurationSetup
 import { SharedStyles } from '../styles/shared-styles';
 import { showDialog, hideDialog, formElementsComplete } from '../util/ui_functions';
 import { User } from 'firebase';
+
 import '../screens/models/models-home';
 import '../screens/models/model-explore/model-explore';
 import './mint-about';
@@ -45,8 +46,10 @@ export class MintApp extends connect(store)(LitElement) {
   @property({type: String})
   private _subpage = '';
 
-  @property({type: String})
-  private _selectedModel = '';
+  @property({type: String}) private _selectedModel = '';
+  @property({type: String}) private _selectedVersion = '';
+  @property({type: String}) private _selectedConfig = '';
+  @property({type: String}) private _selectedSetup = '';
 
   @property({type:Boolean})
   private _drawerOpened = false;
@@ -57,6 +60,12 @@ export class MintApp extends connect(store)(LitElement) {
   @property({type: Object})
   private user!: User;
 
+  private _dispatchedSubRegionsQuery : boolean = false;
+
+  private _loggedIntoWings = false;
+
+  private _dispatchedConfigQuery = false;
+  
   _once = false;
 
   static get styles() {
@@ -135,8 +144,22 @@ export class MintApp extends connect(store)(LitElement) {
         border-left-color: #629b30;
       }
 
+      .message-button {
+        --button-padding: 6px;
+      }
+      .message-button.selected {
+        background-color: rgb(98, 155, 48);
+        color: white;
+      }
+      .message-button.selected:hover {
+        background-color: rgb(98, 155, 48);
+      }
+      .message-button:hover {
+        background-color: rgb(224, 224, 224);
+      }
+
       #info {
-        margin: 0 auto;
+        margin: 0px auto 10px;
         background: #f0f0f0;
         width: calc(75% - 40px);
         border-radius: 1em;
@@ -157,6 +180,10 @@ export class MintApp extends connect(store)(LitElement) {
           padding: 25px 10px 10px 10px;
       }
 
+    .no-decoration, .no-decoration:hover {
+        text-decoration: none;
+    }
+
     #back-button {
         padding: 4px 4px 4px 10px;
         border-radius: 0;
@@ -169,7 +196,38 @@ export class MintApp extends connect(store)(LitElement) {
     ];
   }
 
+  _onConfigureClick () {
+    let url = 'models/configure';
+    if (this._selectedModel) {
+        url += '/' + this._selectedModel.split('/').pop();
+        if (this._selectedVersion) {
+            url += '/' + this._selectedVersion.split('/').pop();
+            if (this._selectedConfig) {
+                url += '/' + this._selectedConfig.split('/').pop();
+                if (this._selectedSetup) 
+                    url += '/' + this._selectedSetup.split('/').pop();
+            }
+        }
+    }
+    goToPage(url);
+  }
+
   protected render() {
+    let nav = [{label:'Model Explorer', url:'home'}] 
+    switch (this._subpage) {
+        case 'explore':
+            if (this._selectedModel) {
+                let modelId = this._selectedModel.split('/').pop();
+                nav.push({label: modelId.replace(/_/g,' '), url: 'models/explore/' + modelId});
+            }
+            break;
+        case 'configure':
+            nav.push({label: 'Model Configuration', url: 'models/configure'});
+            break;
+        default:
+            break;
+    }
+
     // Anything that's related to rendering should be done in here.
     return html`
     <!-- Overall app layout -->
@@ -190,14 +248,14 @@ export class MintApp extends connect(store)(LitElement) {
                   </div>
               </a>
               ${(this._selectedModel && !(this._page == 'home' || this._page == 'about'))?
-                    html`<a class="active">${this._selectedModel.split('/').pop()}</a>` : html``}
+                    html`<a class="active">${this._selectedModel.split('/').pop().replace(/_/g,' ')}</a>` : html``}
             </ul>
 
         </div>
 
         <div slot="right">
-        <wl-button flat inverted class="message-button ${this._page == 'configure' ? 'selected' : ''}" 
-                   @click="${() => goToPage('models/configure')}">
+        <wl-button flat inverted class="message-button ${this._subpage == 'configure' ? 'selected' : ''}" 
+                   @click="${this._onConfigureClick}">
             Configure model <wl-icon style="margin-left: 4px;">settings</wl-icon>
         </wl-button>
 
@@ -222,29 +280,39 @@ export class MintApp extends connect(store)(LitElement) {
         </wl-button>
       </wl-nav>
 
+
         <div class="sectionframe">
           <div id="right">
             <div class="card">
               <!-- Main Pages -->
-              <mint-about class="page fullpage" ?active="${this._page == 'about'}"></mint-about>
+
+            <nav-title .nav="${nav}" max="2">
+                <a slot="after" class="no-decoration" target="_blank" href="${this._getHelpLink()}">
+                    <wl-button style="--button-padding: 8px;">
+                        <wl-icon style="margin-right: 5px;">help_outline</wl-icon>
+                        <b>Documentation</b>
+                    </wl-button>
+                </a>
+            </nav-title>
+
               ${(this._page == 'home' && this._infoActive) ? html`
               <div id="info">
                 <div> <wl-icon @click="${()=>{this._infoActive = false;}}">clear<wl-icon> </div>
                 <div class="cont"> 
-                    <p>The <b>MINT Model Explorer</b> is an application for finding and exploring software models 
-                    and metadata available in the MINT Model Catalog.</p>
-                    <p>We are currently adding new models and metadata, so this is work in progress.
+                    <p>
+                        The <b>MINT Model Explorer</b> is an application for finding and exploring software models 
+                        and metadata available in the MINT Model Catalog.<br/>
+                        We are currently adding new models and metadata, so this is work in progress.
                         Click <a href="/about">here</a> to know more.
-                    </p>
-                    <br/>
                     <p>We <b>recommend using the MINT Model Explorer in Chrome.</b></p>
                 </div>
               </div>
               ` : html``}
-              ${console.log(this._page, this._subpage)}
-              <model-explorer class="page fullpage" style="height:100%;"
+
+              <mint-about class="page fullpage" ?active="${this._page == 'about'}"></mint-about>
+              <model-explorer class="page"
                               ?active="${this._page != 'about' && this._subpage != 'configure'}"></model-explorer>
-              <models-configure class="page fullpage" style="height:100%" ?active="${this._subpage == 'configure'}"></models-configure>
+              <models-configure class="page" ?active="${this._subpage == 'configure'}"></models-configure>
             </div>
           </div>
         </div>
@@ -253,6 +321,15 @@ export class MintApp extends connect(store)(LitElement) {
     ${this._renderDialogs()}
     `;
   }
+
+    private _getHelpLink () {
+        let uri : string = 'https://mintproject.readthedocs.io/en/latest/modelcatalog/';
+        if (this._selectedSetup)
+            return uri + '#model-configuration-setup';
+        if (this._selectedConfig)
+            return uri + '#model-configuration';
+        return uri;
+    }
 
   _renderDialogs() {
     return html`
@@ -307,17 +384,14 @@ export class MintApp extends connect(store)(LitElement) {
 
   protected firstUpdated() {
     installRouter((location) => store.dispatch(navigate(decodeURIComponent(location.pathname))));
-    /*store.dispatch(fetchModels());
-    store.dispatch(fetchVersionsAndConfigs());
     store.dispatch(fetchUser());
-    store.dispatch(fetchUserPreferences());
-    store.dispatch(listTopRegions());*/
-        store.dispatch(modelsGet());
-        store.dispatch(versionsGet());
-        store.dispatch(modelConfigurationsGet());
-        store.dispatch(modelConfigurationSetupsGet());
-        store.dispatch(regionsGet());
-        store.dispatch(imagesGet());
+    store.dispatch(modelsGet());
+    store.dispatch(versionsGet());
+    store.dispatch(modelConfigurationsGet());
+    store.dispatch(modelConfigurationSetupsGet());
+    store.dispatch(regionsGet());
+    store.dispatch(imagesGet());
+    store.dispatch(processesGet());
   }
 
   protected updated(changedProps: PropertyValues) {
@@ -335,8 +409,11 @@ export class MintApp extends connect(store)(LitElement) {
   stateChanged(state: RootState) {
     this._page = state.app!.page;
     this._subpage = state.app!.subpage;
-    if (state.explorerUI && state.explorerUI.selectedModel != this._selectedModel) {
-        this._selectedModel = state.explorerUI.selectedModel;
+    if (state.explorerUI) {
+        if (state.explorerUI.selectedModel != this._selectedModel) this._selectedModel = state.explorerUI.selectedModel;
+        if (state.explorerUI.selectedVersion != this._selectedVersion) this._selectedVersion = state.explorerUI.selectedVersion;
+        if (state.explorerUI.selectedConfig != this._selectedConfig) this._selectedConfig = state.explorerUI.selectedConfig;
+        if (state.explorerUI.selectedCalibration != this._selectedSetup) this._selectedSetup = state.explorerUI.selectedCalibration;
     }
     this.user = state.app!.user!;
   }

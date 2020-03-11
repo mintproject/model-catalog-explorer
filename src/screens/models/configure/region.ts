@@ -3,7 +3,6 @@ import { PageViewElement } from 'components/page-view-element';
 
 import { SharedStyles } from 'styles/shared-styles';
 import { ExplorerStyles } from '../model-explore/explorer-styles'
-//import { GOOGLE_API_KEY } from 'config/google-api-key';
 import { GoogleMapCustom } from 'components/google-map-custom';
 
 import { store, RootState } from 'app/store';
@@ -27,9 +26,13 @@ import "weightless/checkbox";
 import 'components/loading-dots'
 import { Region } from '@mintproject/modelcatalog_client';
 import { Textfield } from 'weightless/textfield';
+import { User } from 'firebase';
 
 @customElement('models-configure-region')
 export class ModelsConfigureRegion extends connect(store)(PageViewElement) {
+    @property({type: Object})
+    private user!: User;
+
     @property({type: String})
     private _tab: '' | 'map' = '';
 
@@ -175,11 +178,6 @@ export class ModelsConfigureRegion extends connect(store)(PageViewElement) {
                 <wl-button @click="${this._cancel}" style="margin-right: 5px;" inverted flat ?disabled="${this._waiting}">Cancel</wl-button>
                 <wl-button @click="${this._onSubmitRegions}" class="submit">Add selected regions</wl-button>
                 `: ''}
-                ${this._tab === 'map' ? html`
-                <wl-button @click="${() => {this._changeTab('')}}" style="margin-right: 5px;" inverted flat ?disabled="${this._waiting}">Cancel</wl-button>
-                <wl-button @click="${this._onSelectRegionFromMap}" class="submit"
-                    ?disabled="${this._waiting || !this._selectedMapRegion}">Add selected region</wl-button>
-                `: ''}
             </div>
         </wl-dialog>
         ${renderNotifications()}`
@@ -187,10 +185,8 @@ export class ModelsConfigureRegion extends connect(store)(PageViewElement) {
 
     _renderSelectTab () {
         let subregions : Region[] = Object.values(this._regions || {}).filter((region:Region) => 
-            region.partOf &&
-            region.partOf.length > 0 &&
-            region.partOf.some((obj:Region) => obj.id === this._region.model_catalog_uri) &&
-            region.label.join().toLowerCase().includes(this._filter.toLowerCase())
+            (!region.label && region.id.toLowerCase().includes(this._filter.toLowerCase())) ||
+            (region.label && region.label.join().toLowerCase().includes(this._filter.toLowerCase()))
         );
 
         return html`
@@ -204,7 +200,9 @@ export class ModelsConfigureRegion extends connect(store)(PageViewElement) {
                         <span class="${this._selected[region.id] ? 'bold' : ''}">${region.label ? region.label : region.id}</span>
                     </label>
                     <wl-button flat inverted disabled><wl-icon>edit</wl-icon></wl-button>
-                    <wl-button @click="${() => this._delete(region)}" flat inverted><wl-icon class="warning">delete</wl-icon></wl-button>
+                    <wl-button @click="${() => this._delete(region)}" flat inverted ?disabled=${!this.user}>
+                        <wl-icon class="warning">delete</wl-icon>
+                    </wl-button>
                 </div>
                 `)}
             </div>`
@@ -249,17 +247,17 @@ export class ModelsConfigureRegion extends connect(store)(PageViewElement) {
             ` : ''}`*/
     }
 
-    _onRegionCategoryChange () {
+    /*_onRegionCategoryChange () {
         let form:HTMLFormElement = this.shadowRoot!.querySelector<HTMLFormElement>("#regionForm")!;
         let category = (form.elements["category-selector"] as HTMLSelectElement).value;
         if (category != this._selectedCategory) {
             this._selectedCategory = category;
             this.addRegionsToMap();
         }
-    }
+    }*/
 
 
-    public addRegionsToMap() {   
+    /*public addRegionsToMap() {
         let map = this.shadowRoot.querySelector("google-map-custom") as GoogleMapCustom;
         let visibleRegions = this._mapRegions.filter((region) => region.region_type == this._selectedCategory);
         if(map && visibleRegions) {
@@ -274,15 +272,15 @@ export class ModelsConfigureRegion extends connect(store)(PageViewElement) {
               })
             }
         }
-    }
+    }*/
 
-    private _handleMapClick(ev: any) {
+    /*private _handleMapClick(ev: any) {
         if(ev.detail && ev.detail.id) {
             this._selectedMapRegion = this._mapRegions.filter(r => r.id === ev.detail.id)[0];
         }
-    }
+    }*/
 
-    _onSelectRegionFromMap () {
+    /*_onSelectRegionFromMap () {
         this._waiting = true;
         let selected = this._selectedMapRegion;
         let newRegion : Region = {
@@ -307,7 +305,7 @@ export class ModelsConfigureRegion extends connect(store)(PageViewElement) {
         postProm.catch((error) => {
             this._waiting = false;
         })
-    }
+    }*/
 
     _toggleSelection (region:Region) {
         this._selected[region.id] = !this._selected[region.id];
@@ -344,6 +342,7 @@ export class ModelsConfigureRegion extends connect(store)(PageViewElement) {
     }
 
     stateChanged(state: RootState) {
+        this.user = state.app!.user!;
         if (state.modelCatalog) {
             let db = state.modelCatalog;
             this._regions = db.regions;

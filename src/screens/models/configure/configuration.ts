@@ -15,6 +15,7 @@ import { personGet, personPost, modelConfigurationPut,
          parameterGet, datasetSpecificationGet, gridGet,
          timeIntervalGet, processGet, softwareImageGet, } from 'model-catalog/actions';
 import { sortByPosition, createUrl, renderExternalLink, renderParameterType } from './util';
+import { User } from 'firebase';
 
 import "weightless/progress-spinner";
 import 'components/loading-dots'
@@ -30,6 +31,9 @@ import { ModelsConfigureDatasetSpecification } from './dataset-specification';
 
 @customElement('models-configure-configuration')
 export class ModelsConfigureConfiguration extends connect(store)(PageViewElement) {
+    @property({type: Object})
+    private user!: User;
+
     @property({type: Boolean})
     private _editing : boolean = false;
 
@@ -341,7 +345,12 @@ export class ModelsConfigureConfiguration extends connect(store)(PageViewElement
                 <td>
                     ${this._config.hasSoftwareImage ? 
                     ((this._softwareImage && Object.keys(this._softwareImage).length > 0) ?
-                        html`<span class="software-image">${this._softwareImage.label}</span>`
+                        html`<span class="software-image">
+                            <a target="_blank"
+                               href="https://hub.docker.com/r/${this._softwareImage.label[0].split(':')[0]}/tags">
+                                ${this._softwareImage.label}
+                            </a>
+                        </span>`
                         : html`${this._config.hasSoftwareImage[0].id} ${this._softwareImageLoading ?
                             html`<loading-dots style="--width: 20px"></loading-dots>`: ''}`)
                     : 'No software image'}
@@ -366,7 +375,7 @@ export class ModelsConfigureConfiguration extends connect(store)(PageViewElement
                         <span class="grid">
                             <span style="margin-right: 30px; text-decoration: underline;">${this._grid.label}</span>
                             <span style="font-style: oblique; color: gray;">${this._grid.type.filter(g => g != 'Grid')}</span>
-                            ${this._editing ? html`<wl-icon style="margin-left:10px">edit</wl-icon>` : ''}
+                            ${false && this._editing ? html`<wl-icon style="margin-left:10px">edit</wl-icon>` : ''}
                             <br/>
                             <div style="display: flex; justify-content: space-between;">
                                 <span style="font-size: 12px;">Spatial resolution:</span>
@@ -396,7 +405,7 @@ export class ModelsConfigureConfiguration extends connect(store)(PageViewElement
                                 <span> 
                                     ${this._timeInterval.intervalValue}
                                     ${this._timeInterval.intervalUnit ? this._timeInterval.intervalUnit[0].label : ''}
-                                    ${this._editing ? html`
+                                    ${false && this._editing ? html`
                                     <wl-icon style="margin-left:10px; --icon-size:  16px; cursor: pointer; vertical-align: middle;">edit</wl-icon>
                                     ` : ''}
                                 </span>
@@ -515,7 +524,7 @@ export class ModelsConfigureConfiguration extends connect(store)(PageViewElement
         </div>` 
         :html`
         <div style="float:right; margin-top: 1em;">
-            <wl-button @click="${this._edit}" disabled>
+            <wl-button @click="${this._edit}" ?disabled=${!this.user}>
                 <wl-icon>edit</wl-icon>&ensp;Edit
             </wl-button>
         </div>`}
@@ -573,7 +582,7 @@ export class ModelsConfigureConfiguration extends connect(store)(PageViewElement
 
     _showProcessDialog () {
         this._dialog = 'process';
-        let selectedProcesses = this._config.hasProcess.reduce((acc: any, process: any) => {
+        let selectedProcesses = (this._config.hasProcess||[]).reduce((acc: any, process: any) => {
             if (!acc[process.id]) acc[process.id] = true;
             return acc;
         }, {})
@@ -615,6 +624,7 @@ export class ModelsConfigureConfiguration extends connect(store)(PageViewElement
     }
 
     stateChanged(state: RootState) {
+        this.user = state.app!.user!;
         if (state.explorerUI) {
             let ui = state.explorerUI;
             // check whats changed

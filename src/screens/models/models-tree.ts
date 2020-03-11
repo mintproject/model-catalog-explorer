@@ -10,7 +10,7 @@ import { goToPage } from '../../app/actions';
 import { IdMap } from 'app/reducers';
 import { ModelConfigurationSetup, ModelConfiguration, SoftwareVersion, Model, Region } from '@mintproject/modelcatalog_client';
 import { regionsGet } from 'model-catalog/actions';
-import { isSubregion } from 'model-catalog/util';
+import { isSubregion, sortVersions, sortConfigurations, sortSetups } from 'model-catalog/util';
 
 import "weightless/progress-spinner";
 import 'components/loading-dots'
@@ -96,6 +96,25 @@ export class ModelsTree extends connect(store)(PageViewElement) {
 
             span {
                 cursor: pointer;
+            }
+            
+            span.tag {
+                border: 1px solid;
+                border-radius: 3px;
+                padding: 0px 3px;
+                font-weight: bold;
+            }
+            
+            span.tag.deprecated {
+                border-color: chocolate;
+                background: chocolate;
+                color: white;
+            }
+            
+            span.tag.latest {
+                border-color: forestgreen;
+                background: forestgreen;
+                color: white;
             }`
         ];
     }
@@ -130,7 +149,7 @@ export class ModelsTree extends connect(store)(PageViewElement) {
         if (!this._models)
             return html`<div style="width:100%; text-align: center;"><wl-progress-spinner></wl-progress-spinner></div>`;
 
-        const visibleSetup = (setup: ModelConfigurationSetup) => true;
+        const visibleSetup = (setup: ModelConfigurationSetup) => !!setup;
         return html`
         <ul style="padding-left: 10px; margin-top: 4px;">
             ${Object.values(this._models)
@@ -152,6 +171,7 @@ export class ModelsTree extends connect(store)(PageViewElement) {
                     ${model.hasVersion
                         .filter((v:any) => !!this._versions[v.id])
                         .map((v:any) => this._versions[v.id])
+                        .sort(sortVersions)
                         .map((version : SoftwareVersion) => html`
                     <li>
                         <span @click=${() => {
@@ -159,6 +179,8 @@ export class ModelsTree extends connect(store)(PageViewElement) {
                              this.requestUpdate();
                         }}>
                             <wl-icon>${this._visible[version.id] ? 'expand_more' : 'expand_less'}</wl-icon>
+                            <!-- FIXME tag is not on the npm package right now -->
+                            ${version['tag'] ? version['tag'].map((tag:string) => html`<span class="tag ${tag}">${tag}</span>`) : ''}
                             <span ?selected="${this._selectedVersion === version.id}" style="vertical-align: top;">
                                 ${version.label ? version.label : this._getId(version)}
                             </span>
@@ -169,8 +191,10 @@ export class ModelsTree extends connect(store)(PageViewElement) {
                             ${(version.hasConfiguration || [])
                                 .filter(c => !!c.id)
                                 .map((c) => this._configs[c.id])
+                                .sort(sortConfigurations)
                                 .map((config : ModelConfiguration) => html`
                             <li>
+                                ${config.tag ? config.tag.map((tag:string) => html`<span class="tag ${tag}">${tag}</span>`) : ''}
                                 <a class="config" @click="${()=>{this._select(model, version, config)}}"
                                    ?selected="${this._selectedConfig === config.id}">
                                     ${config ? config.label : this._getId(config)}
@@ -179,8 +203,10 @@ export class ModelsTree extends connect(store)(PageViewElement) {
                                     ${(config.hasSetup || [])
                                         .map((s:any) => this._setups[s.id])
                                         .filter(visibleSetup)
+                                        .sort(sortSetups)
                                         .map((setup : ModelConfigurationSetup) => html`
                                     <li>
+                                        ${setup.tag ? setup.tag.map((tag:string) => html`<span class="tag ${tag}">${tag}</span>`) : ''}
                                         <a class="setup" @click="${()=>{this._select(model, version, config, setup)}}"
                                            ?selected="${this._selectedSetup === setup.id}">
                                             ${setup ? setup.label : this._getId(setup)}
