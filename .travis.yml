@@ -1,6 +1,6 @@
 language: generic
 addons:
-  ssh_known_hosts: mint.isi.edu
+  ssh_known_hosts: "mint.isi.edu"
 env:
   matrix:
   - DOCKER_COMPOSE_VERSION=1.23.2
@@ -24,13 +24,13 @@ before_deploy:
 - ssh-add id_travis_rsa
 deploy:
 - provider: script
-  skip_cleanup: true
+  cleanup: true
   script: bash scripts/deploy.sh $TRAVIS_BUILD_DIR/model-catalog-explorer model-catalog_$TRAVIS_BRANCH
   on:
     all_branches: true
-    condition: "$TRAVIS_BRANCH =~ ^(master|travis)$"
+    condition: "$TRAVIS_BRANCH =~ ^(master|develop)$"
 - provider: script
-  skip_cleanup: true
+  cleanup: true
   script: bash scripts/deploy.sh $TRAVIS_BUILD_DIR/model-catalog-explorer model-catalog_$TRAVIS_TAG
   on:
     tags: true
