@@ -24,13 +24,13 @@ before_deploy:
 - ssh-add id_travis_rsa
 deploy:
 - provider: script
-  cleanup: true
+  cleanup: false
   script: bash scripts/deploy.sh $TRAVIS_BUILD_DIR/model-catalog-explorer model-catalog_$TRAVIS_BRANCH
   on:
     all_branches: true
     condition: "$TRAVIS_BRANCH =~ ^(master|develop)$"
 - provider: script
-  cleanup: true
+  cleanup: false
   script: bash scripts/deploy.sh $TRAVIS_BUILD_DIR/model-catalog-explorer model-catalog_$TRAVIS_TAG
   on:
     tags: true
