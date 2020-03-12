@@ -30,7 +30,7 @@ deploy:
     all_branches: true
     condition: "$TRAVIS_BRANCH =~ ^(master|develop)$"
 - provider: script
-  cleanup: false
+  skip_cleanup: true
   script: bash scripts/deploy.sh $TRAVIS_BUILD_DIR/model-catalog-explorer model-catalog_$TRAVIS_TAG
   on:
     tags: true
