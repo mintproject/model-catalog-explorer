@@ -426,7 +426,7 @@ export class ModelView extends connect(store)(PageViewElement) {
     }
 
     _copyRun () {
-        let text : string = 'min run ' + this._runArgs;
+        let text : string = 'mint run ' + this._runArgs;
         navigator.clipboard.writeText(text).then(() => {
             console.log('Text copied!');
         }, (err) => {
