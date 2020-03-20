@@ -560,7 +560,7 @@ export class ModelView extends connect(store)(PageViewElement) {
             </span>
             <wl-button flat inverted @click=${() => this._openCLIDialog(this._config.uri)}
                 style="float:right; top:12px" class="${this._config && this._config.uri && hasVersions? '':'hidden'}">
-                <wl-icon>code</wl-icon>
+                <wl-icon>get_app</wl-icon>
             </wl-button>
             <a target="_blank" href="${this._config ? this._config.uri : ''}" style="margin: 17px 5px 0px 0px; float:left;"
                 class="rdf-icon ${this._config? '' : 'hidden'}"></a> 
@@ -574,7 +574,7 @@ export class ModelView extends connect(store)(PageViewElement) {
             </span>
             <wl-button flat inverted @click=${() => this._openCLIDialog(this._calibration.uri)}
                 style="float:right; top:12px" class="${this._calibration && this._calibration.uri && hasVersions? '':'hidden'}">
-                <wl-icon>code</wl-icon>
+                <wl-icon>get_app</wl-icon>
             </wl-button>
             <a target="_blank" href="${this._calibration ? this._calibration.uri : ''}" style="margin: 17px 5px 0px 0px; float:left;"
                 class="rdf-icon ${this._calibration? '' : 'hidden'}"></a> 
