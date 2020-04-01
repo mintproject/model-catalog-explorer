@@ -398,7 +398,7 @@ export class ModelView extends connect(store)(PageViewElement) {
                 <wl-text> You can run this model with the following command: </wl-text>
                 <div class="monospaced code-example">
                     <div style="font-size: 14px">
-                        <span style="color: darkgray;">$</span> mint run ${this._runArgs}
+                        <span style="color: darkgray;">$</span> dame run ${this._runArgs}
                     </div>
                     <div>
                         <wl-button inverted flat @click="${this._copyRun}">
@@ -426,7 +426,7 @@ export class ModelView extends connect(store)(PageViewElement) {
     }
 
     _copyRun () {
-        let text : string = 'mint run ' + this._runArgs;
+        let text : string = 'dame run ' + this._runArgs;
         navigator.clipboard.writeText(text).then(() => {
             console.log('Text copied!');
         }, (err) => {
