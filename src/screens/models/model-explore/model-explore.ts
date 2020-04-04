@@ -8,23 +8,19 @@ import { store, RootState } from 'app/store';
 import { goToPage } from 'app/actions';
 import { IdMap } from 'app/reducers';
 
-import { fetchModels, fetchVersionsAndConfigs, fetchSearchModelByVarSN } from 'util/model-catalog-actions';
 import { isEmpty } from 'model-catalog/util';
 import { Model } from '@mintproject/modelcatalog_client';
-import { modelsSearchIndex, modelsSearchIntervention, modelsSearchRegion } from 'model-catalog/actions';
+import { modelsSearchIndex, modelsSearchIntervention, modelsSearchRegion, modelsSearchStandardVariable } from 'model-catalog/actions';
 
 import './model-preview'
 import './model-view'
-import './model-edit'
 
 import "weightless/textfield";
 import "weightless/icon";
 import "weightless/select";
 
-import explorer from '../../../util/model-catalog-reducers';
 import explorerUI from "./ui-reducers";
 store.addReducers({
-    explorer,
     explorerUI
 });
 
@@ -43,7 +39,6 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
     private _searchType : string = 'full-text';
 
     private _fullText : {[s: string]: string} = {};
-    private _variables : {[s: string]: string[]} = {};
 
     @property({type: Object})
     private _activeModels : {[s: string]: boolean} = {};
@@ -95,7 +90,7 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
                 width: 100%;
             }
 
-            #model-view-cont > model-view, model-edit {
+            #model-view-cont > model-view {
                 margin: 0 auto;
                 display: block;
                 width: 75%;
@@ -155,7 +150,7 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
         return html`
             ${this._selectedUri? 
                 //Display only selected model or the search
-                html`<div id="model-view-cont"><model-view></model-view></div>`
+                html`<div id="model-view-cont"><model-view active></model-view></div>`
                 : this._renderSearch()
             }
         `;
@@ -200,10 +195,7 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
                     <model-preview .id="${key}" ?active="${this._activeModels[key]}">
 
                       <div slot="description">
-                        ${this._variables[key] ? html`
-                            <b>With variables (${this._variables[key].length}):</b>
-                            ${this._variables[key].map((v, i) => html`${i>0?', ':''}<code>${v}</code>`)}`
-                        : this._models[key].description}
+                        ${this._models[key].description}
                       </div>
 
                     </model-preview>`)
@@ -225,11 +217,6 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
         if (arrow) {
             arrow.style.pointerEvents = "none";
         }
-    }
-
-    firstUpdated() {
-        store.dispatch(fetchModels());
-        store.dispatch(fetchVersionsAndConfigs());
     }
 
     _onSearchInput () {
@@ -262,7 +249,6 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
 
     _clearSearchInput () {
         this._filter = '';
-        this._variables = {};
         Object.keys(this._models).forEach((key:string) => {
             this._activeModels[key] = true;
         });
@@ -293,7 +279,17 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
                 this._activeModels[key] = false;
             })
             this._lastTimeout = setTimeout(
-                ()=>{ store.dispatch(fetchSearchModelByVarSN(input)); },
+                ()=>{ 
+                    let req = modelsSearchStandardVariable(input);
+                    req.then((result:any) => {
+                        let validIds = result.map(x => x.id);
+
+                        Object.keys(this._models).forEach((key:string) => {
+                            this._activeModels[key] = (validIds.indexOf(key) >= 0);
+                        });
+                        this._loading=false;
+                    });
+                },
                 750);
         } else {
             this._loading=false;
@@ -409,21 +405,6 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
                 } else {
                     this._searchByFullText(this._filter);
                 }
-                this._loading = false;
-            }
-        }
-
-        if (state.explorer) {
-            if (state.explorer.search && state.explorer.search[this._filter]) {
-                this._variables = { ...state.explorer.search[this._filter] };
-
-                Object.keys(this._models).forEach((key:string) => {
-                    if (this._variables[key]) {
-                        this._activeModels[key] = true;
-                    } else {
-                        this._activeModels[key] = false;
-                    }
-                });
                 this._loading = false;
             }
         }
