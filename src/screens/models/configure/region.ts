@@ -15,6 +15,7 @@ import { showNotification, showDialog, hideDialog } from 'util/ui_functions';
 import { RegionCategory } from "screens/regions/reducers";
 
 import { regionsGet, regionPost, regionDelete } from 'model-catalog/actions';
+import { isSubregion } from 'model-catalog/util';
 
 import { renderExternalLink } from './util';
 

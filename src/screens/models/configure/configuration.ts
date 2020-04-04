@@ -681,7 +681,7 @@ export class ModelsConfigureConfiguration extends connect(store)(PageViewElement
             let modelChanged : boolean = (ui.selectedModel !== this._selectedModel);
             let versionChanged : boolean = (modelChanged || ui.selectedVersion !== this._selectedVersion)
             let configChanged : boolean = (versionChanged || ui.selectedConfig !== this._selectedConfig);
-            this._editing = (ui.mode === 'edit' && this.user);
+            this._editing = (ui.mode === 'edit' && !!this.user);
 
             if (modelChanged) {
                 this._selectedModel = ui.selectedModel;

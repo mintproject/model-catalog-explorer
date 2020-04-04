@@ -40,9 +40,6 @@ import ui, { UIState } from './ui-reducers';
 import { UIAction } from './ui-actions';
 import { RegionsState } from '../screens/regions/reducers';
 
-import { ApiAction } from '../util/model-catalog-actions';
-import { ExplorerState } from '../util/model-catalog-reducers';
-
 import { DExplorerUIState } from '../screens/datasets/ui-reducers';
 
 import { ExplorerUIAction } from '../screens/models/model-explore/ui-actions';
@@ -62,7 +59,6 @@ export interface RootState {
   datasets?: DatasetsState;
   regions?: RegionsState;
   emulators?: EmulatorsState;
-  explorer?: ExplorerState;
   explorerUI?: ExplorerUIState;
   dataExplorerUI?: DExplorerUIState;
   modelCatalog: ModelCatalogState;
@@ -70,8 +66,7 @@ export interface RootState {
 }
 
 export type RootAction = AppAction | ModelingAction | ModelsAction | DatasetsAction | ModelCatalogAction |
-                         RegionsAction | UIAction | ApiAction | ExplorerUIAction | EmulatorsAction |
-                         DExplorerUIAction ;
+                         RegionsAction | UIAction | ExplorerUIAction | EmulatorsAction | DExplorerUIAction ;
 
 // Sets up a Chrome extension for time travel debugging.
 // See https://github.com/zalmoxisus/redux-devtools-extension for more information.
