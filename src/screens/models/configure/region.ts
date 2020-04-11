@@ -186,8 +186,7 @@ export class ModelsConfigureRegion extends connect(store)(PageViewElement) {
 
     _renderSelectTab () {
         let subregions : Region[] = Object.values(this._regions || {}).filter((region:Region) => 
-            (!region.label && region.id.toLowerCase().includes(this._filter.toLowerCase())) ||
-            (region.label && region.label.join().toLowerCase().includes(this._filter.toLowerCase()))
+            isSubregion(this._region.model_catalog_uri, region)
         );
 
         return html`

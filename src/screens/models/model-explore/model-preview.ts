@@ -10,7 +10,8 @@ import { goToPage } from '../../../app/actions';
 import { ExplorerStyles } from './explorer-styles'
 //import { explorerCompareModel } from './ui-actions'
 
-import { getId, isEmpty, isSubregion, getLatestVersion, getLatestConfiguration, getLatestSetup } from 'model-catalog/util';
+import { getId, isEmpty, isSubregion, getLatestVersion, getLatestConfiguration, getLatestSetup,
+         isExecutable } from 'model-catalog/util';
 import { IdMap } from 'app/reducers';
 import { Model, SoftwareVersion, ModelConfiguration, ModelConfigurationSetup, Parameter, SoftwareImage,
          Person, Process, SampleResource, SampleCollection, Region, Image } from '@mintproject/modelcatalog_client';
@@ -249,7 +250,9 @@ export class ModelPreview extends connect(store)(PageViewElement) {
                         ${this._model.keywords && this._model.keywords.length > 0 ? 
                             this._model.keywords.join(';').split(/ *; */).join(', ') : 'No keywords'}
                     </span>
-                    <a href="${this._url}" class="details-button"> More details </a>
+                    <a href="${this._url? this._url : this.PREFIX + getId(this._model)}" class="details-button"> 
+                        More details
+                    </a>
                   </div>
                 </td>
               </tr>
@@ -339,9 +342,9 @@ export class ModelPreview extends connect(store)(PageViewElement) {
                                     .reduce((sum2:number, cfg:ModelConfiguration) =>
                                         sum2 + (cfg.hasSetup || [])
                                                 .map((setup:any) => db.setups[setup.id])
-                                                .filter((setup:ModelConfigurationSetup) => !!setup)
+                                                .filter((setup:ModelConfigurationSetup) => isExecutable(setup))
                                                 .reduce((sum3:number, setup:ModelConfigurationSetup) => {
-                                                    this._nSetups = this._nSetups + (setup.hasRegion || [])
+                                                    (setup.hasRegion || [])
                                                             .map((reg:any) => db.regions[reg.id])
                                                             .filter((reg:Region) => {
                                                                 this._regions.add(reg);
@@ -367,8 +370,7 @@ export class ModelPreview extends connect(store)(PageViewElement) {
                                                                         }
                                                                     }
                                                                 }
-                                                                return true
-                                                            }).length;
+                                                            });
                                                     return sum3 + 1;
                                                 }, 0)
                                     , 0)

@@ -11,13 +11,13 @@ import { goToPage } from 'app/actions';
 import { UserPreferences, IdMap } from 'app/reducers';
 import { BoundingBox } from './reducers';
 import { setPreview } from './actions';
+import { selectSubRegion } from 'app/ui-actions';
 
 import { modelsGet, versionsGet, modelConfigurationsGet, modelConfigurationSetupsGet, regionsGet, geoShapesGet,
          datasetSpecificationGet, sampleResourceGet, sampleCollectionGet, setupGetAll } from 'model-catalog/actions';
 
 import { isSubregion } from 'model-catalog/util';
-import { GeoShape, Region, Model, SoftwareVersion, ModelConfiguration, ModelConfigurationSetup, 
-         DatasetSpecification } from '@mintproject/modelcatalog_client';
+import { GeoShape, Region, Model, SoftwareVersion, ModelConfiguration, ModelConfigurationSetup } from '@mintproject/modelcatalog_client';
 import { Dataset } from "screens/datasets/reducers";
 
 import { queryDatasetResourcesAndSave, queryDatasetResourcesRaw } from 'screens/datasets/actions';
@@ -36,6 +36,9 @@ export class RegionModels extends connect(store)(PageViewElement)  {
 
     @property({type: Boolean})
     private _loading : boolean = false;
+
+    @property({type: String})
+    public regionType : string = '';
 
     /* Model catalog data */
     @property({type: Object}) private _geoShapes : IdMap<GeoShapeBBox> = {};
@@ -152,6 +155,10 @@ export class RegionModels extends connect(store)(PageViewElement)  {
     private _getMatchingModels() {
         /* Get setups */
         this._matchingSetups = [];
+        if (!this._selectedRegion) {
+            this._loadingSetups = false;
+            return;
+        }
         this._loadingSetups = true;
         let selbox : BoundingBox = this._selectedRegion.bounding_box;
         let selArea : number = (selbox.xmax - selbox.xmin) * (selbox.ymax - selbox.ymin);
@@ -166,7 +173,7 @@ export class RegionModels extends connect(store)(PageViewElement)  {
                     if (bbox && bbox.xmin && this._doBoxesIntersect(bbox, selbox) && isSubregion(parentRegion, region)) {
                         // A point inside the bbox does not mean that the point is inside the polygon
                         let area : number = (bbox.xmax - bbox.xmin) * (bbox.ymax - bbox.ymin);
-                        if (area > selArea || this._bboxInRegion(bbox, this._selectedRegion) ) {
+                        if (area >= selArea || this._bboxInRegion(bbox, this._selectedRegion) ) {
                             regions.add(region.id);
                         }
                     }
@@ -204,7 +211,7 @@ export class RegionModels extends connect(store)(PageViewElement)  {
         .then((setups:ModelConfigurationSetup[]) => {
             let datasets : Set<string> = new Set();
             setups.forEach((setup:ModelConfigurationSetup) => {
-                (setup.hasInput||[]).forEach((input:DatasetSpecification) => {
+                (setup.hasInput||[]).forEach(input => {
                     (input.hasFixedResource||[]).forEach(sample => {
                         (sample.dataCatalogIdentifier||[]).forEach(dsid => {
                             if (dsid[0] != 'F' && dsid[1] != 'F' && dsid[2] != 'F')
@@ -269,12 +276,9 @@ export class RegionModels extends connect(store)(PageViewElement)  {
 
     protected render() {
         if (!this._selectedRegion) return html``;
-
-        if (this._loading)
-            return html`<div style="width:100%; text-align: center;"><wl-progress-spinner></wl-progress-spinner></div>`;
         else return html`
             <wl-title level="4" style="font-size: 17px; margin-top: 20px;">Models for ${this._selectedRegion.name}</wl-title>
-            ${this._loadingSetups ? 
+            ${this._loadingSetups || this._loading ? 
                 html`<div style="width:100%; text-align: center;"><wl-progress-spinner></wl-progress-spinner></div>`
                 : (Object.keys(this._categorizedMatchingSetups).length == 0 ? 
                     html`<div class="info-center">No models for this region</div>`
@@ -341,7 +345,7 @@ export class RegionModels extends connect(store)(PageViewElement)  {
             }
         }
 
-        if (this._selectedRegion && this._selectedRegion != curregion) {
+        if (this._selectedRegion != curregion) {
             this._getMatchingModels();
         }
 
