@@ -6,7 +6,7 @@ import { Dataset } from "../datasets/reducers";
 
 import { setupsSearchVariable } from 'model-catalog/actions';
 import { ModelConfigurationSetup, DatasetSpecification } from '@mintproject/modelcatalog_client';
-import { sortByPosition } from './configure/util';
+import { sortByPosition, getLabel } from 'model-catalog/util';
 
 import { getVariableProperty } from "offline_data/variable_list";
 
@@ -45,32 +45,25 @@ const parameterToParam = (parameter) => {
 }
 
 const fixedToValue = (fx) => {
-    let dataCatalogIdentifier = fx.dataCatalogIdentifier ? fx.dataCatalogIdentifier[0] : "";
-    let resources = [];
-    if (fx.value) {
+    if (fx.type.includes("SampleCollection")) {
+        return {
+            id: fx.id,
+            resources: []
+        }
+    } else if (fx.value && fx.value.length > 0) {
+        let dataCatalogIdentifier = fx.dataCatalogIdentifier && fx.dataCatalogIdentifier.length > 0 ?
+                fx.dataCatalogIdentifier[0] : "";
         let url = fx.value[0];
         let fname = url.replace(/.*[#\/]/, '');
-        resources.push({
-            url: url,
-            id: fname,
-            name: fname,
-            selected: true
-        });
-    }
-
-    if (fx.hasPart) {
-        fx.hasPart.forEach((part:any) => {
-            let partVal = fixedToValue(part)
-            if (!dataCatalogIdentifier)
-                dataCatalogIdentifier = partVal.id;
-            if (partVal.resources.length > 0)
-                resources = resources.concat(partVal.resources);
-        })
-    }
-
-    return {
-        id: dataCatalogIdentifier,
-        resources: resources
+        return {
+            id: dataCatalogIdentifier,
+            resources: [{
+                url: url,
+                id: fname,
+                name: fname,
+                selected: true
+            }]
+        }
     }
 }
 
@@ -105,8 +98,8 @@ export const setupToOldModel = (setup: ModelConfigurationSetup) :  Model => {
         id: setup.id,
         localname: setup.id.substr(setup.id.lastIndexOf("/") + 1),
         name: setup.label ? setup.label[0] : "",
-        calibrated_region: setup.hasRegion && false ?
-                setup.hasRegion.map((r:any) => r.label[0]).join(', ') : "",
+        calibrated_region: setup.hasRegion && setup.hasRegion.length > 0 ?
+                setup.hasRegion.map(getLabel).join(', ') : "",
         description: setup.description ? setup.description[0] : "",
         category: setup.hasModelCategory ? setup.hasModelCategory[0] : "",
         wcm_uri: setup.hasComponentLocation ? setup.hasComponentLocation[0] : "",
@@ -116,7 +109,9 @@ export const setupToOldModel = (setup: ModelConfigurationSetup) :  Model => {
         original_model: "", //FIXME row["modelName"] || "",
         model_version: "", //FIXME row["versionName"] || "",
         model_configuration: "", //FIXME row["configurationName"] || "",
-        model_type: "",
+        model_type: (setup.type || [])
+            .filter(m => m != "ConfigurationSetup" && m != "ModelConfigurationSetup").join(', ')
+            .replace('Model', ' Model'),
         parameter_assignment: setup.parameterAssignmentMethod ? setup.parameterAssignmentMethod[0] : "",
         parameter_assignment_details: "",
         target_variable_for_parameter_assignment: setup.calibrationTargetVariable ?
@@ -124,7 +119,7 @@ export const setupToOldModel = (setup: ModelConfigurationSetup) :  Model => {
                         .map((tv:any) => tv.label? tv.label[0] : '')
                         .filter((l:string) => !!l)
                         .join(', ') : "",
-        modeled_processes: [""], //TODO the API is not returning this. <-----
+        modeled_processes: [], //TODO the API is not returning this. <-----
         dimensionality: "",
         spatial_grid_type: "",
         spatial_grid_resolution: "",

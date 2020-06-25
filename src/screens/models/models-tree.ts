@@ -77,7 +77,7 @@ export class ModelsTree extends connect(store)(PageViewElement) {
             }
 
             ul {
-                padding-left: 20px;
+                padding-left: 14px;
                 font-size: 13px;
             }
 
@@ -155,9 +155,33 @@ export class ModelsTree extends connect(store)(PageViewElement) {
             return html`<div style="width:100%; text-align: center;"><wl-progress-spinner></wl-progress-spinner></div>`;
 
         const visibleSetup = (setup: ModelConfigurationSetup) => !!setup;
+        let categoryModels = {};
+        Object.values(this._models).forEach((m:Model) => {
+            let category : string = m.hasModelCategory && m.hasModelCategory.length > 0 ?
+                    m.hasModelCategory[0] : 'Uncategorized';
+            if (!categoryModels[category]) categoryModels[category] = [];
+            categoryModels[category].push(m);
+            if (this._selectedModel === m.id) {
+                this._visible[category] = true;
+            }
+        });
+
         return html`
         <ul style="padding-left: 10px; margin-top: 4px;">
-            ${Object.values(this._models)
+            ${Object.keys(categoryModels).map((category:string) => html`
+            <li>
+                <span @click="${() => {
+                    this._visible[category] = !this._visible[category];
+                    this.requestUpdate();
+                }}">
+                    <wl-icon>${this._visible[category] ? 'expand_more' : 'expand_less'}</wl-icon>
+                    <span ?selected="${this._visible[category]}" style="font-size: 15px;">
+                        ${category}
+                    </span>
+                </span>
+                ${this._visible[category] ? html`
+                <ul>
+            ${categoryModels[category]
                 .filter((model: Model) => !!model.hasVersion)
                 .map((model: Model) => html`
             <li>
@@ -184,7 +208,6 @@ export class ModelsTree extends connect(store)(PageViewElement) {
                              this.requestUpdate();
                         }}>
                             <wl-icon>${this._visible[version.id] ? 'expand_more' : 'expand_less'}</wl-icon>
-                            <!-- FIXME tag is not on the npm package right now -->
                             ${version['tag'] ? version['tag'].map((tag:string) => html`<span class="tag ${tag}">${tag}</span>`) : ''}
                             <span ?selected="${this._selectedVersion === version.id}">
                                 ${version.label ? version.label : this._getId(version)}
@@ -196,10 +219,11 @@ export class ModelsTree extends connect(store)(PageViewElement) {
                             ${(version.hasConfiguration || [])
                                 .filter(c => !!c.id)
                                 .map((c) => this._configs[c.id])
-                                .sort((cfg1, cfg2) => sortConfigurations(cfg2, cfg1))
+                                .filter(c => (c && c.id))
+                                .sort(sortConfigurations)
                                 .map((config : ModelConfiguration) => html`
                             <li>
-                                ${config.tag ? config.tag.map((tag:string) => html`<span class="tag ${tag}">${tag}</span>`) : ''}
+                                ${config && config.tag ? config.tag.map((tag:string) => html`<span class="tag ${tag}">${tag}</span>`) : ''}
                                 <a class="config" @click="${()=>{this._select(model, version, config)}}"
                                    ?selected="${this._selectedConfig === config.id}">
                                     ${config ? config.label : this._getId(config)}
@@ -229,12 +253,12 @@ export class ModelsTree extends connect(store)(PageViewElement) {
                                 </ul>
                             </li>
                             `)}
-                            <!--li>
-                                <a class="inline-new-button config" @click="">
+                            <li>
+                                <a class="inline-new-button config" @click="${() => {this._selectNew(model, version)}}">
                                     <wl-icon>add_circle_outline</wl-icon>
                                     Add new configuration
                                 </a>
-                            </li-->
+                            </li>
                         </ul>`}
                         ` : ''}
                     </li>`)}
@@ -243,7 +267,18 @@ export class ModelsTree extends connect(store)(PageViewElement) {
                 ` : ''}
             </li>
         `)}
-        </ul>`;
+                </ul>
+                ` : ''}
+            </li>
+
+            `)}
+
+
+
+        </ul>
+        
+        
+        `;
     }
 
     protected firstUpdated () {

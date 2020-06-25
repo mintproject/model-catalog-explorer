@@ -95,7 +95,7 @@ th > span.tooltip > wl-icon {
 span.resource {
     display: inline-block;
     line-height: 1em;
-    margin-right: 4px;
+    margin: 0px 3px 3px 0px;
     border-radius: 4px;
     padding: 1px 4px;
 }
@@ -116,6 +116,10 @@ span.process {
     border: 2px solid purple;
 }
 
+span.parameter {
+    border: 2px solid red;
+}
+
 span.time-interval {
     border: 2px solid burlywood;
 }
@@ -125,6 +129,11 @@ span.grid {
 }
 
 span.software-image {
+    border: 2px solid darkgray;;
+    font: 12px Monaco, Consolas, "Andale Mono", "DejaVu Sans Mono", monospace;
+}
+
+span.variable-presentation {
     border: 2px solid darkgray;;
     font: 12px Monaco, Consolas, "Andale Mono", "DejaVu Sans Mono", monospace;
 }

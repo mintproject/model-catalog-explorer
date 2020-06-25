@@ -12,7 +12,7 @@ import { renderNotifications } from "util/ui_renders";
 import { showNotification, showDialog, hideDialog } from 'util/ui_functions';
 
 import { personGet, modelConfigurationSetupPost, parameterGet, datasetSpecificationGet, gridGet,
-         timeIntervalGet,  processGet, softwareImageGet, } from 'model-catalog/actions';
+         timeIntervalGet,  processGet, softwareImageGet } from 'model-catalog/actions';
 import { getLabel } from 'model-catalog/util';
 import { sortByPosition, createUrl, renderExternalLink, renderParameterType } from './util';
 
@@ -304,6 +304,7 @@ export class ModelsNewSetup extends connect(store)(PageViewElement) {
                 });
                 return newInput;
             });
+
             setupCreated.hasParameter = (setupCreated.hasParameter || []).map((param: Parameter) => {
                 let newParam = this._parameters[param.id];
                 if (!newParam['isAdjustable'] && (!newParam.hasFixedValue || newParam.hasFixedValue.length === 0) && newParam.hasDefaultValue) {
@@ -965,7 +966,7 @@ export class ModelsNewSetup extends connect(store)(PageViewElement) {
                         });
 
                         // Fetching ONE grid
-                        if (!this._grid && this._setup.hasGrid) {
+                        if (!this._grid && this._setup.hasGrid && this._setup.hasGrid.length > 0) {
                             let gridId : string = typeof this._setup.hasGrid[0] === 'string' ?
                                 this._setup.hasGrid[0] as string
                                 : this._setup.hasGrid[0].id;
@@ -976,7 +977,8 @@ export class ModelsNewSetup extends connect(store)(PageViewElement) {
                         }
 
                         // Fetching ONE time interval
-                        if (!this._timeInterval && this._setup.hasOutputTimeInterval) {
+                        if (!this._timeInterval && this._setup.hasOutputTimeInterval &&
+                            this._setup.hasOutputTimeInterval.length > 0) {
                             let ti = this._setup.hasOutputTimeInterval[0];
                             let tiId = typeof ti === 'object' ? ti.id : ti;
                             if (!db.timeIntervals || !db.timeIntervals[tiId]) {
@@ -986,7 +988,8 @@ export class ModelsNewSetup extends connect(store)(PageViewElement) {
                         }
 
                         // Fetching ONE softwareImage
-                        if (!this._softwareImage && this._setup.hasSoftwareImage) {
+                        if (!this._softwareImage && this._setup.hasSoftwareImage && 
+                            this._setup.hasSoftwareImage.length > 0) {
                             let si = this._setup.hasSoftwareImage[0];
                             let siId = typeof si === 'object' ? si['id'] : si;
                             if (!db.softwareImages || !db.softwareImages[siId]) {
@@ -1053,7 +1056,7 @@ export class ModelsNewSetup extends connect(store)(PageViewElement) {
                         }
                     }
 
-                    if (db.grids && !this._grid && this._setup.hasGrid) {
+                    if (db.grids && !this._grid && this._setup.hasGrid && this._setup.hasGrid.length > 0) {
                         let gridId:string = typeof this._setup.hasGrid[0] === 'string'?
                             this._setup.hasGrid[0] as string
                             : this._setup.hasGrid[0].id;

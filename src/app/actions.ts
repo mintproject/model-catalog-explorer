@@ -11,7 +11,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 import { Action, ActionCreator } from 'redux';
 import { ThunkAction } from 'redux-thunk';
 import { RootState, store } from './store';
-import { explorerClearModel, explorerSetModel, explorerSetVersion, explorerSetConfig,
+import { explorerClearModel, explorerSetModel, explorerSetVersion, explorerSetConfig, addModelToCompare, clearCompare,
          explorerSetCalibration, explorerSetMode } from '../screens/models/model-explore/ui-actions';
 import { selectScenario, selectPathway, selectSubgoal, selectPathwaySection, selectTopRegion, selectThread } from './ui-actions';
 import { auth, db } from '../config/firebase';
@@ -132,13 +132,16 @@ export const fetchMintConfig: ActionCreator<UserPrefsThunkResult> = () => (dispa
 };
 
 export const signIn = (email: string, password: string) => {
-  auth.signInWithEmailAndPassword(email, password);
-  modelCatalogLogin(email, password);
+  let req = auth.signInWithEmailAndPassword(email, password)
+        .then(() => modelCatalogLogin(email, password));
+  return req;
 };
 
 export const signOut = () => {
-  auth.signOut();
   localStorage.removeItem('accessToken');
+  auth.signOut().then(() => {
+      window.location.reload(false);
+  });
 };
 
 const modelCatalogLogin = (username: string, password: string) => {
@@ -241,6 +244,14 @@ const loadPage: ActionCreator<ThunkResult> =
                     store.dispatch(explorerClearModel());
                 }
             });
+        } else if (subpage == 'compare') {
+            import('../screens/models/models-compare').then((_module) => {
+                store.dispatch(clearCompare());
+                for (let i = 0; i < params.length; i++) {
+                    store.dispatch(addModelToCompare(params[i]));
+                }
+            });
+        } else if (subpage == 'register') {
         }
         break;
     default:
