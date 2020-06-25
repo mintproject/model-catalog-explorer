@@ -5,7 +5,9 @@ import { store, RootState } from "../../../app/store";
 import { ModelMap, ModelEnsembleMap, ComparisonFeature, StepUpdateInformation, ExecutableEnsembleSummary } from "../reducers";
 import models, { VariableModels, Model } from "../../models/reducers";
 import { queryModelsByVariables, setupToOldModel } from "../../models/actions";
-import { setupGetAll, regionsGet } from 'model-catalog/actions';
+import { setupGetAll, regionsGet, modelsGet, versionsGet, modelConfigurationsGet, modelConfigurationSetupsGet,
+         sampleCollectionGet, sampleResourceGet } from 'model-catalog/actions';
+import { getId } from 'model-catalog/util';
 
 import { SharedStyles } from "../../../styles/shared-styles";
 import { updatePathway, deleteAllPathwayEnsembleIds } from "../actions";
@@ -21,6 +23,8 @@ import { getVariableLongName } from "../../../offline_data/variable_list";
 import { MintPathwayPage } from "./mint-pathway-page";
 import { Region } from "screens/regions/reducers";
 import { IdMap } from "app/reducers";
+import { Model as MCModel, SoftwareVersion, ModelConfiguration, ModelConfigurationSetup, SampleCollection,
+         SampleResource } from '@mintproject/modelcatalog_client';
 
 import 'components/loading-dots';
 
@@ -47,6 +51,15 @@ export class MintModels extends connect(store)(MintPathwayPage) {
     private _showAllModels: boolean = false;
 
     @property({type: Object})
+    private _loadedModels : IdMap<Model> = {};
+
+    @property({type: Boolean})
+    private _baseLoaded : boolean = false;
+    private _allModels : any = {};
+    private _allVersions : any = {};
+    private _allConfigs : any = {};
+
+    @property({type: Object})
     private _allRegions : any = {};
     @property({type:Boolean})
     private _waiting: boolean = false;
@@ -57,18 +70,6 @@ export class MintModels extends connect(store)(MintPathwayPage) {
     private _drivingVariables: string[] = [];
 
     private _comparisonFeatures: Array<ComparisonFeature> = [
-        /*{
-            name: "More information",
-            fn: (model:Model) => html `
-                <a target="_blank" href="${this._getModelSetupURL(model)}">Model Profile</a>
-                `
-        },        
-        {
-            name: "Original model",
-            fn: (model:Model) => html `
-                <a target="_blank" href="${this._getModelURL(model)}">${model.original_model}</a>
-                `
-        },        */
         {
             name: "Adjustable variables",
             fn: (model:Model) => {
@@ -78,7 +79,7 @@ export class MintModels extends connect(store)(MintPathwayPage) {
                         return values.map((ip) => ip.name).join(', ');
                     }
                 }
-                return "None";
+                return html`<span style="color:#999">None<span>`
             }
         },
         {
@@ -87,39 +88,50 @@ export class MintModels extends connect(store)(MintPathwayPage) {
         },
         {
             name: "Modeled processes",
-            fn: (model:Model) => model.modeled_processes
+            fn: (model:Model) => model.modeled_processes.length > 0 ?
+                    model.modeled_processes : html`<span style="color:#999">None specified<span>`
         },
         {
             name: "Parameter assignment/estimation",
             fn: (model:Model) => model.parameter_assignment
         },
-        {
+        /*{
             name: "Parameter assignment/estimation details",
             fn: (model:Model) => model.parameter_assignment_details
-        },
+        },*/
         {
             name: "Target variable for parameter assignment/estimation",
-            fn: (model:Model) => model.target_variable_for_parameter_assignment
+            fn: (model:Model) => model.target_variable_for_parameter_assignment ? 
+                    model.target_variable_for_parameter_assignment : html`<span style="color:#999">No specified<span>`
         },
         {
             name: "Configuration region",
-            fn: (model:Model) => model.calibrated_region
+            fn: (model:Model) => model.calibrated_region ?
+                    model.calibrated_region : html`<span style="color:#999">No specified<span>`
         },
         {
             name: "Spatial dimensionality",
-            fn: (model:Model) => html`<span style="font-family: system-ui;"> ${model.dimensionality} </span>`
+            fn: (model:Model) => model.dimensionality ? 
+                    html`<span style="font-family: system-ui;"> ${model.dimensionality} </span>`
+                    : html`<span style="color:#999">No specified<span>`
         },
         {
             name: "Spatial grid type",
-            fn: (model:Model) => model.spatial_grid_type
+            fn: (model:Model) => model.spatial_grid_type ? 
+                    model.spatial_grid_type
+                    : html`<span style="color:#999">No specified<span>`
         },
         {
             name: "Spatial grid resolution",
-            fn: (model:Model) => model.spatial_grid_resolution
+            fn: (model:Model) => model.spatial_grid_resolution ?
+                    model.spatial_grid_resolution 
+                    : html`<span style="color:#999">No specified<span>`
         },
         {
             name: "Minimum output time interval",
-            fn: (model:Model) => model.minimum_output_time_interval
+            fn: (model:Model) => model.minimum_output_time_interval ?
+                    model.minimum_output_time_interval
+                    : html`<span style="color:#999">No specified<span>`
         }
     ]
 
@@ -139,21 +151,9 @@ export class MintModels extends connect(store)(MintPathwayPage) {
         let modelids = Object.keys((this.pathway.models || {})) || [];
         let done = (this.pathway.models && modelids.length > 0);
         let availableModels = this._queriedModels[this._responseVariables.join(",")] || [];
-        let regionModels = availableModels.filter((model: Model) => {
-            if (!!model.hasRegion && 
-                model.hasRegion.some((region) => isSubregion(this._region.model_catalog_uri, region)))
-                return true;
-            let model_region_name = model.calibrated_region.toLowerCase();
-            let top_region_name = this._region.name.toLowerCase();
-            let task_region_name = this._subregion ? this._subregion.name.toLowerCase() : null;
-            if(model_region_name.indexOf(top_region_name) >=0) return true;
-            if(top_region_name.indexOf(model_region_name) >=0) return true;
-            if(task_region_name) {
-                if(model_region_name.indexOf(task_region_name) >=0) return true;
-                if(task_region_name.indexOf(model_region_name) >=0) return true;
-            }
-            return false;
-        })
+        let regionModels = availableModels.filter((model: Model) =>
+            (model.hasRegion||[]).some((region) => isSubregion(this._region.model_catalog_uri, region))
+        );
         return html`
         <p>
             The models below are appropriate for the indicators of interest. You can select multiple calibrated models and compare them.  
@@ -319,11 +319,16 @@ export class MintModels extends connect(store)(MintPathwayPage) {
     }
 
     _renderDialogs() {
+        let compUrl : string = this._regionid + '/models/compare/' + this._modelsToCompare.map(getId).join('/');
+        let loading : boolean = this._modelsToCompare.some((m:Model) => !this._loadedModels[m.id]);
         return html`
         <wl-dialog class="comparison" fixed backdrop blockscrolling id="comparisonDialog">
             <table class="pure-table pure-table-striped">
                 <thead>
-                    <th style="border-right:1px solid #EEE; font-size: 14px;">Model details</th>
+                    <th style="border-right:1px solid #EEE; font-size: 14px;">
+                    Model details
+                    ${loading ? html`<loading-dots style="--width: 20px; margin-left:10px"></loading-dots>`: ''}
+                    </th>
                     ${this._modelsToCompare.map((model) => {
                         return html`
                         <th .style="width:${100/(this._modelsToCompare.length)}%">
@@ -340,8 +345,9 @@ export class MintModels extends connect(store)(MintPathwayPage) {
                         <tr>
                             <td style="border-right:1px solid #EEE"><b>${feature.name}</b></td>
                             ${this._modelsToCompare.map((model) => {
+                                let smodel = this._loadedModels[model.id] ? this._loadedModels[model.id] : model;
                                 return html`
-                                    <td>${feature.fn(model)}</td>
+                                    <td>${feature.fn(smodel)}</td>
                                 `
                             })}
                         </tr>
@@ -349,36 +355,38 @@ export class MintModels extends connect(store)(MintPathwayPage) {
                     })}
                 </tbody>
             </table>
+            <div style="padding: 10px;">
+                For more details, see the <a href="${compUrl}">full comparison page</a>
+            </div>
         </wl-dialog>
         `;
     }
 
     _getModelURL (model:Model) {
-        let url = this._regionid + '/models/explore/' + model.original_model;
-        if (model.model_version) {
-            url += '/' + model.model_version;
-            if (model.model_configuration) {
-                url += '/' + model.model_configuration;
-                if (model.localname) {
-                    url += '/' + model.localname;
+        //FIXME find a better way to do this.
+        if (this._baseLoaded) {
+            let setupid : string = model.id;
+            let config : ModelConfiguration = Object.values(this._allConfigs)
+                    .filter((cfg:ModelConfiguration) => 
+                            cfg.hasSetup && cfg.hasSetup.some((s:ModelConfigurationSetup) => s.id === setupid)).pop();
+            if (config) {
+                let version : SoftwareVersion = Object.values(this._allVersions)
+                    .filter((ver:SoftwareVersion) => 
+                            ver.hasConfiguration && ver.hasConfiguration.some((c:ModelConfiguration) => c.id === config.id)).pop();
+                if (version) {
+                    let model : MCModel = Object.values(this._allModels)
+                    .filter((m:MCModel) => 
+                            m.hasVersion && m.hasVersion.some((v:SoftwareVersion) => v.id === version.id)).pop();
+                    if (model) {
+                        return this._regionid + '/models/explore/' + getId(model) + '/' + getId(version)
+                                + "/" + getId(config) + "/" + setupid.split("/").pop();
+                    }
                 }
             }
         }
-        return url;
-    }
 
-    _getModelSetupURL (model:Model) {
-        let url = this._regionid + '/models/configure/' + model.original_model;
-        if (model.model_version) {
-            url += '/' + model.model_version;
-            if (model.model_configuration) {
-                url += '/' + model.model_configuration;
-                if (model.localname) {
-                    url += '/' + model.localname;
-                }
-            }
-        }
-        return url;
+
+        return this._regionid + '/models/explore/';
     }
 
     _getSelectedModels() {
@@ -412,10 +420,23 @@ export class MintModels extends connect(store)(MintPathwayPage) {
             return;
         }
         this._modelsToCompare = Object.values(models);
+        Promise.all(
+            this._modelsToCompare.map((m:Model) => {
+                if (!this._loadedModels[m.id]) {
+                    let p = setupGetAll(m.id);
+                    p.then((setup) => {
+                        this._loadedModels[setup.id] = setupToOldModel(setup);
+                    });
+                    return p
+                } else return null;
+            })
+        ).then((setups) => {
+            this.requestUpdate();
+        })
         showDialog("comparisonDialog", this.shadowRoot!);
     }
 
-    _selectPathwayModels() {
+    async _selectPathwayModels() {
         let models = this._getSelectedModels();
         Object.values(models).forEach((model) => {
             if (model.hasRegion)
@@ -461,7 +482,7 @@ export class MintModels extends connect(store)(MintPathwayPage) {
         showNotification("saveNotification", this.shadowRoot!);
         this._waiting = true;
         // GET all data for the selected models.
-        console.log("getting all info", models);
+        //console.log("getting all info", models);
         Promise.all(
             Object.keys(models || {}).map((modelid) => setupGetAll(modelid))
         ).then((setups) => {
@@ -469,37 +490,97 @@ export class MintModels extends connect(store)(MintPathwayPage) {
             Object.values(fixedModels).forEach((model) => {
                 if (model.hasRegion)
                     delete model.hasRegion;
+                    Object.values(this._allConfigs).forEach((cfg:ModelConfiguration) => {
+                        if ((cfg.hasSetup || []).some((setup:ModelConfigurationSetup) => setup.id === model.id))
+                            model.model_configuration = cfg.id;
+                    });
+                    if (model.model_configuration) {
+                        Object.values(this._allVersions).forEach((ver:SoftwareVersion) => {
+                            if ((ver.hasConfiguration || []).some((cfg:ModelConfiguration) => cfg.id === model.model_configuration))
+                                model.model_version = ver.id;
+                        });
+                    }
+                    if (model.model_version) {
+                        Object.values(this._allModels).forEach((mod:MCModel) => {
+                            if ((mod.hasVersion || []).some((ver:SoftwareVersion) => ver.id === model.model_version))
+                                model.original_model = mod.id;
+                        });
+                    }
             });
-            let mapModels = {}
-            fixedModels.forEach(model => mapModels[model.id] = model);
-            console.log('fixed models', mapModels);
+            /* The api does not return collections of inputs. FIXME */
+            let fixCollection = Promise.all( Object.values(fixedModels).map((model:Model) =>
+                Promise.all( model.input_files.map((input) => {
+                    if (input.value && input.value.id && input.value.resources && input.value.resources.length === 0) {
+                        console.log('Checking collection...', input.value.id);
+                        return new Promise((resolve, reject) => {
+                            let req : Promise<SampleCollection> = store.dispatch(sampleCollectionGet(input.value.id));
+                            req.then((sc:SampleCollection) => {
+                                if (sc.hasPart) {
+                                    console.log('hasPart:', sc.hasPart);
+                                    let pResources = Promise.all(sc.hasPart.map((sr:SampleResource) => 
+                                            store.dispatch(sampleResourceGet(sr.id))));
+                                    pResources.then((srs:SampleResource[]) => {
+                                        //console.log('all sample resources!');
+                                        input.value.resources = srs.map((sr:SampleResource) => {
+                                            return {
+                                                url: sr.value ? <unknown>sr.value[0] as string : "",
+                                                id: sr.id,
+                                                name: sr.label ? sr.label[0] : "",
+                                                selected: true
+                                            };
+                                        });
+                                        if (srs.length > 0 && srs[0].dataCatalogIdentifier) {
+                                            input.value.id = srs[0].dataCatalogIdentifier[0];
+                                        }
+                                        resolve();
+                                    });
+                                } else {
+                                    resolve();
+                                }
+                            });
+                            req.catch(resolve);
+                        });
 
-            let newpathway = {
-                ...this.pathway,
-                models: mapModels,
-                model_ensembles: model_ensembles
-            }
+                    } else {
+                        return Promise.resolve();
+                    }
+                }) )
+            ) );
 
-            // Update notes
-            let notes = (this.shadowRoot!.getElementById("notes") as HTMLTextAreaElement).value;
-            newpathway.notes = {
-                ...newpathway.notes!,
-                models: notes
-            };
-            newpathway.last_update = {
-                ...newpathway.last_update!,
-                parameters: null,
-                datasets: null,
-                models: {
-                    time: Date.now(),
-                    user: this.user!.email
-                } as StepUpdateInformation
-            };        
+            fixCollection.then(() => {
 
-            this._waiting = false;
-            updatePathway(this.scenario, newpathway); 
-            
-            this._editMode = false;
+                let mapModels = {}
+                fixedModels.forEach(model => mapModels[model.id] = model);
+
+                let newpathway = {
+                    ...this.pathway,
+                    models: mapModels,
+                    model_ensembles: model_ensembles
+                }
+
+                // Update notes
+                let notes = (this.shadowRoot!.getElementById("notes") as HTMLTextAreaElement).value;
+                newpathway.notes = {
+                    ...newpathway.notes!,
+                    models: notes
+                };
+                newpathway.last_update = {
+                    ...newpathway.last_update!,
+                    parameters: null,
+                    datasets: null,
+                    models: {
+                        time: Date.now(),
+                        user: this.user!.email
+                    } as StepUpdateInformation
+                };        
+
+                this._waiting = false;
+                updatePathway(this.scenario, newpathway); 
+                
+                this._editMode = false;
+
+            })
+
         })
     }
 
@@ -547,7 +628,20 @@ export class MintModels extends connect(store)(MintPathwayPage) {
         store.dispatch(regionsGet()).then((regions) => {
             //FIXME: this until the api return the region label.
             this._allRegions = regions;
-        })
+        });
+
+        let pm = store.dispatch(modelsGet()).then((models) => {
+            this._allModels = models;
+        });
+        let pv = store.dispatch(versionsGet()).then((versions) => {
+            this._allVersions = versions;
+        });
+        let pc = store.dispatch(modelConfigurationsGet()).then((configs) => {
+            this._allConfigs = configs;
+        });
+        Promise.all([pm,pv,pc]).then(() => {
+            this._baseLoaded = true;
+        });
     }
 
     stateChanged(state: RootState) {

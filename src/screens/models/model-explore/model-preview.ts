@@ -265,7 +265,8 @@ export class ModelPreview extends connect(store)(PageViewElement) {
 
     _compare (uri:string) {
         //FIXME
-        //store.dispatch(explorerCompareModel(uri));
+        let compUrl : string = 'models/compare/' + uri.split('/').pop();
+        goToPage(compUrl);
     }
 
     stateChanged(state: RootState) {
