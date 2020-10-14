@@ -1745,6 +1745,7 @@ export class ModelView extends connect(store)(PageViewElement) {
                                     .forEach((region:Region) => regions.add(region.id));
                                 (cfg.hasSetup || [])
                                     .map((setup:ModelConfigurationSetup) => this._setups[setup.id])
+                                    .filter((setup:ModelConfigurationSetup) => !!setup)
                                     .forEach((setup:ModelConfigurationSetup) => {
                                         (setup.hasRegion || [])
                                             .map((region:Region) => db.regions[region.id])
