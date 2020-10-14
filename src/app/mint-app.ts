@@ -62,6 +62,8 @@ export class MintApp extends connect(store)(LitElement) {
   @property({type: Object})
   private user!: User;
 
+  private _model;
+
   private _dispatchedSubRegionsQuery : boolean = false;
 
   private _loggedIntoWings = false;
@@ -217,8 +219,10 @@ export class MintApp extends connect(store)(LitElement) {
     switch (this._subpage) {
         case 'explore':
             if (this._selectedModel) {
-                let modelId = this._selectedModel.split('/').pop();
-                nav.push({label: modelId.replace(/_/g,' '), url: 'models/explore/' + modelId});
+                let modelId : string = this._selectedModel.split('/').pop();
+                let label : string = this._model && this._model.label ?
+                        this._model.label[0] : modelId.replace(/_/g,' ');
+                nav.push({label: label, url: 'models/explore/' + modelId});
             }
             break;
         case 'configure':
@@ -417,7 +421,6 @@ export class MintApp extends connect(store)(LitElement) {
     }
   }
 
-
   stateChanged(state: RootState) {
     this._page = state.app!.page;
     this._subpage = state.app!.subpage;
@@ -426,6 +429,14 @@ export class MintApp extends connect(store)(LitElement) {
         if (state.explorerUI.selectedVersion != this._selectedVersion) this._selectedVersion = state.explorerUI.selectedVersion;
         if (state.explorerUI.selectedConfig != this._selectedConfig) this._selectedConfig = state.explorerUI.selectedConfig;
         if (state.explorerUI.selectedCalibration != this._selectedSetup) this._selectedSetup = state.explorerUI.selectedCalibration;
+        if (this._selectedModel) {
+            let db = state.modelCatalog;
+            if (db && db.models[this._selectedModel]) {
+                this._model = db.models[this._selectedModel];
+            }
+        } else {
+            this._model = undefined;
+        }
     }
     this.user = state.app!.user!;
   }

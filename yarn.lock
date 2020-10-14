@@ -1110,10 +1110,10 @@
     "@types/istanbul-reports" "^1.1.1"
     "@types/yargs" "^12.0.9"
 
-"@mintproject/modelcatalog_client@^1.4.1":
-  version "1.4.1"
-  resolved "https://registry.yarnpkg.com/@mintproject/modelcatalog_client/-/modelcatalog_client-1.4.1.tgz#a202e1e359d9756612e83b1d3e7fcb06f28830cb"
-  integrity sha512-SkaJxBQYRZlPqRyOgd34xhYi3NhuACeljI21a20ksKxyvLvd9S2DZK0dHqXl4hfaGfxf2rg+QrfjjeM3ggb/cw==
+"@mintproject/modelcatalog_client@^5.0.0":
+  version "5.0.0"
+  resolved "https://registry.yarnpkg.com/@mintproject/modelcatalog_client/-/modelcatalog_client-5.0.0.tgz#f8eca578d37acc610bd6f3967cf4b286231e4ae0"
+  integrity sha512-PSDrj6F7YiBuQAJOlBPgxapp9zEU4R2iCDc1XRN/nhWm4skKisAc/WLpcLC+72xwKyQlZDbNSwC7d+eEke3Qxg==
 
 "@mrmlnc/readdir-enhanced@^2.2.1":
   version "2.2.1"
@@ -1417,10 +1417,10 @@
     "@types/minimatch" "*"
     "@types/node" "*"
 
-"@types/googlemaps@^3.37.6":
-  version "3.37.7"
-  resolved "https://registry.yarnpkg.com/@types/googlemaps/-/googlemaps-3.37.7.tgz#224cc94fecfc6cb1be95b7f03ec50218ef8a5deb"
-  integrity sha512-a+mvO0PHHBmvojRAKEo81MYnG8JlZScDoguVHqMi/myfrJIF1KmcSNVyMi6Y5BG/skgLpFJM37nl+hwHNGb3ig==
+"@types/googlemaps@^3.37.7":
+  version "3.40.0"
+  resolved "https://registry.yarnpkg.com/@types/googlemaps/-/googlemaps-3.40.0.tgz#786743648ab464fbeaa4cfe15230a7297273b309"
+  integrity sha512-KcAYVKjd5fL0Ur9G4xNL5YG/Bp5HFfdd8s/7j97eFcTyTpp7vIRcf8mtRBAIOM3QNgN2iJhSEecWTG2x8D+bnQ==
 
 "@types/gulp@^4.0.5":
   version "4.0.6"
