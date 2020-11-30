@@ -166,23 +166,6 @@ export class ModelsConfigureConfiguration extends connect(store)(PageViewElement
             </tr>
 
             <tr>
-                <td>Category:</td>
-                <td>
-                    ${this._editing ? html`
-                    <wl-select id="form-config-category" name="Category" required 
-                            value="${this._config && this._config.hasModelCategory ? this._config.hasModelCategory[0] : ''}">
-                        <option value="">None</option>
-                        <option value="Agriculture">Agriculture</option>
-                        <option value="Hydrology">Hydrology</option>
-                        <option value="Economy">Economy</option>
-                        <option value="Weather">Weather</option>
-                        <option value="Land Use">Land Use</option>
-                    </wl-select>`
-                    : (this._config && this._config.hasModelCategory ? this._config.hasModelCategory[0] : '')}
-                </td>
-            </tr>
-
-            <tr>
                 <td>Full description:</td>
                 <td>
                     ${this._editing ? html`
@@ -377,7 +360,6 @@ export class ModelsConfigureConfiguration extends connect(store)(PageViewElement
 
     private _onSaveButtonClicked () {
         let inputName : Textfield = this.shadowRoot.getElementById("form-config-name") as Textfield;
-        let inputCategory : Select = this.shadowRoot.getElementById("form-config-category") as Select;
         let inputDesc : HTMLTextAreaElement = this.shadowRoot.getElementById("form-config-desc") as HTMLTextAreaElement;
         let inputShortDesc : HTMLTextAreaElement = this.shadowRoot.getElementById("form-config-short-desc") as HTMLTextAreaElement;
         let inputInstall : HTMLTextAreaElement = this.shadowRoot.getElementById("form-config-installation") as HTMLTextAreaElement;
@@ -388,7 +370,6 @@ export class ModelsConfigureConfiguration extends connect(store)(PageViewElement
         let inputTag : Select = this.shadowRoot.getElementById("form-config-tag") as Select;
 
         let name        : string = inputName        ? inputName        .value : '';
-        let category    : string = inputCategory    ? inputCategory    .value : '';
         let desc        : string = inputDesc        ? inputDesc        .value : '';
         let shortDesc   : string = inputShortDesc   ? inputShortDesc   .value : '';
         let install     : string = inputInstall     ? inputInstall     .value : '';
@@ -398,12 +379,12 @@ export class ModelsConfigureConfiguration extends connect(store)(PageViewElement
         let compLoc     : string = inputCompLoc     ? inputCompLoc     .value : '';
         let tag         : string = inputTag         ? inputTag         .value : '';
 
-        if (name && category && desc) {
+        if (name && desc) {
             let jsonObj = {
                 //type: ["ModelConfiguration"],
                 label: [name],
                 description: [desc],
-                hasModelCategory: [category],
+                //hasModelCategory: [category],
                 hasOutputTimeInterval: this._inputTimeInterval.getResources(),
                 author: this._inputPerson.getResources(),
                 hasProcess: this._inputProcess.getResources(),
@@ -443,7 +424,6 @@ export class ModelsConfigureConfiguration extends connect(store)(PageViewElement
             });
         } else {
             if (!name && inputName) (<any>inputName).onBlur();
-            if (!category && inputCategory) (<any>inputCategory).onBlur();
             if (!desc && inputDesc) (<any>inputDesc).onBlur();
         }
     }
