@@ -98,10 +98,11 @@ export const setupToOldModel = (setup: ModelConfigurationSetup) :  Model => {
         id: setup.id,
         localname: setup.id.substr(setup.id.lastIndexOf("/") + 1),
         name: setup.label ? setup.label[0] : "",
+        description: setup.description ? setup.description[0] : "",
         calibrated_region: setup.hasRegion && setup.hasRegion.length > 0 ?
                 setup.hasRegion.map(getLabel).join(', ') : "",
-        description: setup.description ? setup.description[0] : "",
-        category: setup.hasModelCategory ? setup.hasModelCategory[0] : "",
+        category: setup.hasModelCategory && setup.hasModelCategory.length > 0 ? 
+                setup.hasModelCategory.map(getLabel).join(', ') : "",
         wcm_uri: setup.hasComponentLocation ? setup.hasComponentLocation[0] : "",
         input_files: [],
         input_parameters: [],

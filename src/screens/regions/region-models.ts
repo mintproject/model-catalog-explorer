@@ -16,8 +16,9 @@ import { selectSubRegion } from 'app/ui-actions';
 import { modelsGet, versionsGet, modelConfigurationsGet, modelConfigurationSetupsGet, regionsGet, geoShapesGet,
          datasetSpecificationGet, sampleResourceGet, sampleCollectionGet, setupGetAll } from 'model-catalog/actions';
 
-import { isSubregion } from 'model-catalog/util';
-import { GeoShape, Region, Model, SoftwareVersion, ModelConfiguration, ModelConfigurationSetup } from '@mintproject/modelcatalog_client';
+import { isSubregion, getLabel } from 'model-catalog/util';
+import { GeoShape, Region, Model, SoftwareVersion, ModelCategory,
+         ModelConfiguration, ModelConfigurationSetup } from '@mintproject/modelcatalog_client';
 import { Dataset } from "screens/datasets/reducers";
 
 import { queryDatasetResourcesAndSave, queryDatasetResourcesRaw } from 'screens/datasets/actions';
@@ -195,10 +196,16 @@ export class RegionModels extends connect(store)(PageViewElement)  {
 
         this._categorizedMatchingSetups = this._matchingSetups
                 .reduce((map:IdMap<ModelConfigurationSetup[]>, setup:ModelConfigurationSetup) => {
-            let cat : string = setup.hasModelCategory && setup.hasModelCategory.length > 0 ?
-                    setup.hasModelCategory[0] : 'Uncategorized'; 
-            if (!map[cat]) map[cat] = [setup];
-            else map[cat].push(setup)
+            if (setup.hasModelCategory && setup.hasModelCategory.length > 0) {
+                setup.hasModelCategory.map(getLabel).forEach((cat:string) => {
+                    if (!map[cat]) map[cat] = [setup];
+                    else map[cat].push(setup)
+                });
+            } else {
+                let cat : string = 'Uncategorized'; 
+                if (!map[cat]) map[cat] = [setup];
+                else map[cat].push(setup)
+            }
             return map;
         }, {});
         this._loadingSetups = false;

@@ -11,7 +11,7 @@ import { ExplorerStyles } from './explorer-styles'
 //import { explorerCompareModel } from './ui-actions'
 
 import { getId, isEmpty, isSubregion, getLatestVersion, getLatestConfiguration, getLatestSetup,
-         isExecutable } from 'model-catalog/util';
+         isExecutable, getLabel } from 'model-catalog/util';
 import { IdMap } from 'app/reducers';
 import { Model, SoftwareVersion, ModelConfiguration, ModelConfigurationSetup, Parameter, SoftwareImage,
          Person, Process, SampleResource, SampleCollection, Region, Image } from '@mintproject/modelcatalog_client';
@@ -193,10 +193,10 @@ export class ModelPreview extends connect(store)(PageViewElement) {
 
     protected render() {
         if (this._model) {
-            //console.log(this._model);
             let modelType : string[] = this._model.type ?
                     this._model.type.map(t => t.replace('Model', '')).filter(t => !!t)
                     : [];
+            console.log(modelType);
         return html`
             <table>
               <tr>
@@ -217,9 +217,10 @@ export class ModelPreview extends connect(store)(PageViewElement) {
                     }
                   </div>
                   <div class="text-centered two-lines">
-                    Category: ${this._model.hasModelCategory ? html`${this._model.hasModelCategory[0]}` : html`-`}
+                      Category: ${this._model.hasModelCategory && this._model.hasModelCategory.length > 0 ?
+                        this._model.hasModelCategory.map(getLabel).join(', ') : html`-`}
                     <br/>
-                    Type: ${modelType ? modelType : '-'}
+                    ${modelType.length > 0 ? html`Type: ${modelType.join(', ')}`  :html``}
                   </div>
                 </td>
 
