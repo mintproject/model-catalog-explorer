@@ -30,9 +30,9 @@ import 'components/notification';
 import { SharedStyles } from '../styles/shared-styles';
 import { showDialog, hideDialog, formElementsComplete } from '../util/ui_functions';
 import { User } from 'firebase';
+import { getLabel } from 'model-catalog/util';
 
 import '../screens/models/models-home';
-import '../screens/models/model-explore/model-explore';
 import './mint-about';
 import 'weightless/nav'
 import 'weightless/title'
@@ -62,6 +62,7 @@ export class MintApp extends connect(store)(LitElement) {
   @property({type: Object})
   private user!: User;
 
+  @property({type: Object})
   private _model;
 
   private _dispatchedSubRegionsQuery : boolean = false;
@@ -253,7 +254,10 @@ export class MintApp extends connect(store)(LitElement) {
                   </div>
               </a>
               ${(this._selectedModel && !(this._page == 'home' || this._page == 'about'))?
-                    html`<a class="active">${this._selectedModel.split('/').pop().replace(/_/g,' ')}</a>` : html``}
+                    html`<a class="active">
+                        ${this._model ? (getLabel(this._model)) :
+                            this._selectedModel.split('/').pop().replace(/_/g,' ')}
+                    </a>` : html``}
             </ul>
 
         </div>
