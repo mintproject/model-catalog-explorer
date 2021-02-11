@@ -112,7 +112,6 @@ export class MintApp extends connect(store)(LitElement) {
         height: 100%;
         width: 100%;
         overflow: auto;
-        background: #F6F6F6;
       }
 
       div#left {
@@ -274,109 +273,6 @@ export class MintApp extends connect(store)(LitElement) {
     goToPage(url);
   }
 
-  private _getMenuLinks() {
-    return html`
-        <a href="${this._selectedRegion ? this._selectedRegion.id : ""}/home"
-            class=${(this._page == 'home' ? 'active' : '')}>
-            <div style="vertical-align:middle">
-              ▶
-              ${this._selectedRegion ? 
-                this._selectedRegion.name.toUpperCase() : "Select Region"}
-            </div>
-        </a>
-        ${!this.user || !this._selectedRegion ? 
-          (!this.user ? html`
-          <a @click="${this._showLoginWindow}">Log in to see more</a>                
-          ` : "") : 
-          html`
-          <a href='${this._selectedRegion.id}/regions'
-              class=${(this._page == 'regions'? 'active': '')}
-            >Explore Areas</a>                
-          <a href='${this._selectedRegion.id}/models'
-              class=${(this._page == 'models'? 'active': '')}
-            >Prepare Models</a>
-          <a href='${this._selectedRegion.id}/datasets'
-              class=${(this._page == 'datasets'? 'active': '')}
-            >Browse Datasets</a>                  
-          <a href='${this._selectedRegion.id}/modeling'
-              class=${(this._page == 'modeling') ? 'active': ''}
-            class="active">Use Models</a>
-          <a href='${this._selectedRegion.id}/analysis/report'
-              class=${(this._page == 'analysis'? 'active': '')}
-            >Prepare Reports</a>
-          `
-        }
-    `;
-  }
-
-  private _getMenuButtons() {
-    return html`
-        <wl-button flat inverted @click="${() => goToPage("home")}">
-            ${this._selectedRegion ? 
-                "Change Region" : "Select Region"}
-        </wl-button>
-        ${!this.user || !this._selectedRegion ? 
-          (!this.user ? html`
-          <wl-button flat inverted @click="${this._showLoginWindow}">Log in to see more</wl-button>                
-          ` : "") : 
-          html`
-          <wl-button flat inverted class='${(this._page == 'regions'? 'active': '')}'
-            @click='${() => goToPage("regions")}'>
-            Explore Areas
-          </wl-button>
-          <wl-button flat inverted class="${(this._page == 'models'? 'active': '')}"
-            @click='${() => goToPage("models")}'>
-            Prepare Models
-          </wl-button>
-          <wl-button flat inverted class="${(this._page == 'datasets'? 'active': '')}"
-            @click='${() => goToPage("datasets")}'>
-            Browse Datasets
-          </wl-button>
-          <wl-button flat inverted class="${(this._page == 'modeling'? 'active': '')}"
-            @click='${() => goToPage("modeling")}'>
-            Use Models
-          </wl-button>
-          <wl-button flat inverted class="${(this._page == 'analysis'? 'active': '')}"
-            @click='${() => goToPage("analysis")}'>
-            Prepare Reports
-          </wl-button>
-          <wl-button flat inverted class="${this._page == 'emulators' ? 'active' : ''}" 
-            @click="${() => goToPage('emulators')}">
-            Emulators &#38; Results
-          </wl-button>
-          `
-        }
-    `;
-  }
-
-  private _getPageTitle() {
-    let title = "";
-    switch(this._page) {
-      case "regions":
-        title = "Explore Areas";
-        break;
-      case "models": 
-        title = "Prepare Models";
-        break;
-      case "datasets":
-        title = "Browse Datasets";
-        break;
-      case "modeling":
-        title = "Use Models";
-        break;
-      case "analysis":
-        title = "Prepare Reports";
-        break;
-      case "emulators":
-        title = "Emulators";
-        break;
-      default:
-        title = "";
-    }
-    let region = this._selectedRegion ? this._selectedRegion.name.toUpperCase() : "SELECT REGION";
-    return title + (title ? ": ": "") + region;
-  }
-
   protected render() {
     let nav = [{label:'Model Explorer', url:'home'}] 
     switch (this._subpage) {
@@ -403,22 +299,6 @@ export class MintApp extends connect(store)(LitElement) {
     <div class="appframe">
       <!-- Navigation Bar -->
       <wl-nav>
-        <div class="small-screen" slot="left">
-          <wl-button id="breadcrumbs-menu-button" flat inverted @click="${this._onBreadcrumbsMenuButtonClicked}">
-            <wl-icon>menu</wl-icon>
-          </wl-button>
-          <wl-button style="display: inline-block" flat inverted @click="${this._onBreadcrumbsMenuButtonClicked}">
-            ${this._getPageTitle()}
-          </wl-button>
-          <wl-popover id="breadcrumbs-popover" anchor="#breadcrumbs-menu-button" fixed
-                transformOriginX="left" transformOriginY="top" anchorOriginX="left" anchorOriginY="bottom">
-              <div style="background: #fff; padding: 5px 10px; border: 1px solid #ddd; border-radius: 3px; display: flex; flex-direction: column;">
-                <ul class="breadcrumbs">
-                  ${this._getMenuButtons()}
-                </ul>
-              </div>
-          </wl-popover>
-        </div>
         <div slot="title">
             <wl-button id="back-button" flat inverted @click="${()=>goToPage('home')}" ?disabled="${this._page === 'home'}">
                 <wl-icon>arrow_back_ios</wl-icon>
@@ -461,9 +341,6 @@ export class MintApp extends connect(store)(LitElement) {
             <wl-popover id="user-popover" anchor="#user-button" fixed
                 transformOriginX="right" transformOriginY="top" anchorOriginX="right" anchorOriginY="bottom">
                 <div style="background: #fff; padding: 5px 10px; border: 1px solid #ddd; border-radius: 3px; display: flex; flex-direction: column;">
-                    <wl-button flat inverted class="message-button ${this._page == 'messages' ? 'selected' : ''}" @click="${() => goToPage('messages')}">
-                      Messages <wl-icon style="margin-left: 4px;">message</wl-icon>
-                    </wl-button>                
                     <wl-button flat inverted @click="${this._showConfigWindow}"> CONFIGURE </wl-button>
                     <wl-button flat inverted @click="${signOut}"> LOGOUT </wl-button>
                 </div>
@@ -590,13 +467,6 @@ export class MintApp extends connect(store)(LitElement) {
       </h3>
       <div slot="content">
         <p></p>
-        <wl-label for="user-config-region">Default region</wl-label>
-        <wl-select name="Default Region" value="${this._mainRegion}" id="user-config-region">
-            <option value="">None</option>
-            ${this._topRegions ? this._topRegions.map((key) => 
-                html`<option value="${key}">${key}</option>`) : ''}
-        </wl-select>
-        <p></p>
 
         <wl-label>Model catalog graph:</wl-label>
         <div style="margin-top: 4px;">
@@ -641,13 +511,11 @@ export class MintApp extends connect(store)(LitElement) {
   }
 
   _onConfigSave () {
-    let inputRegion : Select  = this.shadowRoot.getElementById('user-config-region') as Select;
     let inputPublicGraph : Select  = this.shadowRoot.getElementById('gpublic') as Select;
     let inputPrivateGraph : Radio  = this.shadowRoot.getElementById('gpersonal') as Radio;
     let notification : CustomNotification = this.shadowRoot.querySelector<CustomNotification>("#custom-notification")!;
-    if (inputRegion && inputPublicGraph && inputPrivateGraph) {
+    if (inputPublicGraph && inputPrivateGraph) {
         let profile : UserProfile = {
-            mainRegion: inputRegion.value,
             graph: inputPrivateGraph.checked ? this.user.email : ''
         }
         console.log('new profile:', profile);

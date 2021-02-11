@@ -12,6 +12,6 @@ if (process.env.NODE_ENV === "production" || process.env.TRAVIS_BRANCH == 'maste
 } else {
     config = dev;
 }
-webpack(config).run((err, stats) => { // Stats Object
+webpack(dev).run((err, stats) => { // Stats Object
   // ...
 });

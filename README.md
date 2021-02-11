@@ -1,7 +1,8 @@
-# mint-modelcatalog-explorer [![Build Status](https://travis-ci.org/mintproject/model-catalog-explorer.svg?branch=master)](https://travis-ci.org/mintproject/model-catalog-explorer)
+# Mint Model Catalog Explorer [![Build Status](https://travis-ci.org/mintproject/model-catalog-explorer.svg?branch=master)](https://travis-ci.org/mintproject/model-catalog-explorer)
 
-New version of the modelcatalog`
+An standalone version of the MINT Model Catalog.
 
+https://models.mint.isi.edu
 
 ## INSTALL
 ```

@@ -240,10 +240,10 @@ export const fetchModelsFromCatalog = async (
 
             // The api does not return collections of inputs. FIXME
             let fixCollection = Promise.all( Object.values(fixedModels).map((model:Model) =>
-                Promise.all( model.input_files.map((input) => {
+                Promise.all( model.input_files.map((input) : Promise<void> => {
                     if (input.value && input.value.id && input.value.resources && input.value.resources.length === 0) {
                         console.log('Checking collection...', input.value.id);
-                        return new Promise((resolve, reject) => {
+                        let prom : Promise<void> = new Promise((resolve, reject) => {
                             let id : string = getIdFromUri(input.value.id);
                             let user : string = getUser();
                             let api : SampleCollectionApi = new SampleCollectionApi();
@@ -275,7 +275,7 @@ export const fetchModelsFromCatalog = async (
                                 }
                             });
                         });
-
+                        return prom;
                     } else {
                         return Promise.resolve();
                     }

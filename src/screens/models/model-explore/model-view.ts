@@ -12,7 +12,7 @@ import { modelGet, versionGet, versionsGet, modelConfigurationGet, modelConfigur
          modelConfigurationSetupGet, imageGet, personGet, regionsGet, organizationGet, fundingInformationGet,
          timeIntervalGet, gridGet, processGet, setupGetAll, visualizationGet, sourceCodeGet, softwareImageGet,
          parameterGet, datasetSpecificationGet, interventionGet, variablePresentationGet } from 'model-catalog/actions';
-import { setupInRegion, capitalizeFirstLetter, getId, getLabel, getURL, uriToId, sortByPosition, isExecutable } from 'model-catalog/util';
+import { capitalizeFirstLetter, getId, getLabel, getURL, uriToId, sortByPosition, isExecutable } from 'model-catalog/util';
 import { GalleryEntry } from 'components/image-gallery';
 
 import { SharedStyles } from 'styles/shared-styles';
@@ -524,7 +524,6 @@ export class ModelView extends connect(store)(PageViewElement) {
             setupSelector.add(unselect, null);
             (this._config.hasSetup || [])
                     .map((setup:ModelConfigurationSetup) => this._setups[setup.id] ? this._setups[setup.id] : setup)
-                    .filter((setup:ModelConfigurationSetup) => setupInRegion(setup, this._region.model_catalog_uri, this._regions))
                     .forEach((setup:ModelConfigurationSetup) => {
                 let newOption = document.createElement('option');
                 newOption.text = '\xA0\xA0' + getLabel(setup);
@@ -653,10 +652,10 @@ export class ModelView extends connect(store)(PageViewElement) {
                             </wl-button>
                         </a>
                         <span>${getLabel(this._model)}</span>
-                        <wl-button style="--button-font-size: 16px; --button-padding: 8px; float: right;" flat inverted 
-                                @click="${() => this._editModel()}">
+                        <!--wl-button style="--button-font-size: 16px; --button-padding: 8px; float: right;" flat inverted 
+                                @click="{() => this._editModel()}">
                             <wl-icon>edit</wl-icon>
-                        </wl-button>
+                        </wl-button-->
                     </wl-title>
                 </div>
                 <div class="col-img text-centered">
@@ -679,12 +678,6 @@ export class ModelView extends connect(store)(PageViewElement) {
                 <div class="col-desc">
                     <wl-divider style="margin-bottom: .5em;"></wl-divider>
                     <wl-text style="text-align: justify;">${this._model.description}</wl-text>
-                    ${this._emulators[this._selectedModel] ?  html`
-                    <div style="margin-top: 4px;">
-                        You can see execution results for this model on
-                        <a href="${'/'+this._regionid+this._emulators[this._selectedModel]}">the emulators page</a>.
-                    </div>` 
-                    : ''}
                     <div class="desc-ext">
                         ${this._model.author?
                           html`<wl-text><b>• Authors:</b> ${this._renderAuthors(this._model.author)}</wl-text>` 

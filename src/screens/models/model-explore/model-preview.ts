@@ -198,7 +198,7 @@ export class ModelPreview extends connect(store)(PageViewElement) {
             let modelType : string[] = this._model.type ?
                     this._model.type.map(t => t.replace('Model', '')).filter(t => !!t)
                     : [];
-            let modelUri : string = this._regionid + (this._url? this._url : this.PREFIX + getId(this._model));
+            let modelUri : string = (this._url? this._url : this.PREFIX + getId(this._model));
         return html`
             <table>
               <tr>
@@ -318,8 +318,8 @@ export class ModelPreview extends connect(store)(PageViewElement) {
             }
         }
 
-        if (this._nConfigs > 0 && this._nSetups < 0 && !this._regions && this._region &&
-                ![db.configurations, db.regions].map(isEmpty).some(b=>b)) {
+        if (this._nConfigs > 0 && this._nSetups < 0 && !this._regions && 
+                ![db.configurations, db.setups, db.regions].map(isEmpty).some(b=>b)) {
             // We filter for region, so we need to compute the url, local setups and regions.
             this._regions = new Set();
             this._nLocalSetups = 0;
