@@ -28,6 +28,11 @@ import { ModelCatalogSourceCodeAction } from './source-code-actions';
 import { ModelCatalogInterventionAction } from './intervention-actions';
 import { ModelCatalogVariablePresentationAction } from './variable-presentation-actions';
 import { ModelCatalogNumericalIndexAction } from './numerical-index-actions';
+import { ModelCatalogDataTransformationAction } from './data-transformation-actions';
+import { ModelCatalogDataTransformationSetupAction } from './data-transformation-setup-actions';
+import { ModelCatalogStandardVariableAction } from './standard-variable-actions';
+import { ModelCatalogCategoryAction } from './category-actions';
+import { ModelCatalogUnitAction } from './unit-actions';
 
 export type ActionThunk<R,A extends Action> = ActionCreator<ThunkAction<R, RootState, undefined, A>>
 interface IdObject { id?: string };
@@ -83,14 +88,18 @@ export const getStatusConfigAndUser = () => {
     let state: any = store.getState();
     let status = state.app.prefs.modelCatalog.status;
     let token = state.app.prefs.modelCatalog.accessToken;
-    let user = state.app.user ? state.app.user.email : DEFAULT_GRAPH;
+    //let user = state.app.user ? state.app.user.email : DEFAULT_GRAPH;
+    let user = state.app.prefs.profile && state.app.prefs.profile.graph ?
+        state.app.prefs.profile.graph : DEFAULT_GRAPH;
     let cfg : Configuration = new Configuration({accessToken: token});
     return [status, cfg, user];
 }
 
 export const getUser = () => {
     let state: any = store.getState();
-    return state.app.user ? state.app.user.email : DEFAULT_GRAPH;
+    let user = state.app.prefs.profile && state.app.prefs.profile.graph ?
+        state.app.prefs.profile.graph : DEFAULT_GRAPH;
+    return user;
 }
 
 export type ModelCatalogAction = ModelCatalogModelAction | ModelCatalogVersionAction | 
@@ -100,10 +109,12 @@ export type ModelCatalogAction = ModelCatalogModelAction | ModelCatalogVersionAc
         ModelCatalogDatasetSpecificationAction | ModelCatalogSampleResourceAction | ModelCatalogSampleCollectionAction |
         ModelCatalogImageAction | ModelCatalogVisualizationAction | ModelCatalogOrganizationAction | 
         ModelCatalogFundingInformationAction | ModelCatalogSourceCodeAction | ModelCatalogInterventionAction |
-        ModelCatalogVariablePresentationAction | ModelCatalogNumericalIndexAction;
+        ModelCatalogVariablePresentationAction | ModelCatalogNumericalIndexAction | ModelCatalogStandardVariableAction |
+        ModelCatalogDataTransformationAction | ModelCatalogDataTransformationSetupAction | ModelCatalogCategoryAction | 
+        ModelCatalogUnitAction; 
 
 //FIXME: The API is returning only one model (void), doing the fetch instead.
-const CUSTOM_URI = "https://api.models.mint.isi.edu/v1.5.0/custom/";
+const CUSTOM_URI = "https://api.models.mint.isi.edu/v1.7.0/custom/";
 export const modelsSearchIndex = (term:string) => {
     /*let MApi : ModelApi = new ModelApi();
     let req = MApi.customModelIndexGet({label:term, username: DEFAULT_GRAPH, customQueryName: 'custom_model_index'});
@@ -194,3 +205,8 @@ export * from './source-code-actions';
 export * from './intervention-actions';
 export * from './variable-presentation-actions';
 export * from './numerical-index-actions';
+export * from './data-transformation-actions';
+export * from './data-transformation-setup-actions';
+export * from './standard-variable-actions';
+export * from './category-actions';
+export * from './unit-actions';

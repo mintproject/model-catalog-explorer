@@ -1,34 +1,26 @@
-language: generic
+language: node_js
+node_js:
+- stable
 addons:
-  ssh_known_hosts: mint.isi.edu
-env:
-  matrix:
-  - DOCKER_COMPOSE_VERSION=1.23.2
-services:
-- docker
-before_install:
-- openssl aes-256-cbc -K $encrypted_b70b0c1c34e1_key -iv $encrypted_b70b0c1c34e1_iv
-  -in google-api-key.ts.enc -out src/config/google-api-key.ts -d
-- sudo rm /usr/local/bin/docker-compose
-- curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname
-  -s`-`uname -m` > docker-compose
-- chmod +x docker-compose
-- sudo mv docker-compose /usr/local/bin
-- docker-compose build
-- docker-compose up -d prod
-- docker cp $(docker-compose ps -q prod):/usr/share/nginx/html/ $TRAVIS_BUILD_DIR/model-catalog-explorer/
+  ssh_known_hosts:
+  - mint.isi.edu
+  - 54.148.90.74
+install: yarn
+cache: yarn
+script: yarn build
 before_deploy:
 - echo $key_pass | gpg --passphrase-fd 0 id_travis_rsa.gpg
 - eval "$(ssh-agent -s)"
 - chmod 600 id_travis_rsa
 - ssh-add id_travis_rsa
+- mv build mint-ui-lit
 deploy:
 - provider: script
   skip_cleanup: true
   script: bash scripts/deploy.sh $TRAVIS_BUILD_DIR/model-catalog-explorer model-catalog_$TRAVIS_BRANCH
   on:
     all_branches: true
-    condition: "$TRAVIS_BRANCH =~ ^(master|travis)$"
+    condition: "$TRAVIS_BRANCH =~ ^(master|travis|wildfire)$"
 - provider: script
   skip_cleanup: true
   script: bash scripts/deploy.sh $TRAVIS_BUILD_DIR/model-catalog-explorer model-catalog_$TRAVIS_TAG

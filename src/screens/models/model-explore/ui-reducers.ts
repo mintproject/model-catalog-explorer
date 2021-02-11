@@ -1,11 +1,11 @@
 import { Reducer } from "redux";
 import { RootAction } from "../../../app/store";
-import { EXPLORER_SELECT_MODEL, EXPLORER_SELECT_VERSION, EXPLORER_SELECT_CONFIG,
-         EXPLORER_SELECT_CALIBRATION, ADD_MODEL_TO_COMPARE, EXPLORER_SET_MODE, CLEAR_COMPARE } from './ui-actions'
+import { EXPLORER_SELECT_MODEL, EXPLORER_SELECT_VERSION, EXPLORER_SELECT_CONFIG, REGISTER_SET_STEP,
+         EXPLORER_SELECT_CALIBRATION, ADD_MODELS_TO_COMPARE, EXPLORER_SET_MODE, CLEAR_COMPARE } from './ui-actions'
 
 export interface ComparisonEntry {
     uri:        string;
-    type:       'Model' | 'ModelConfiguration' | 'ModelConfigurationSetup'; //TODO: could change to enum
+    type:       'Model' | 'SoftwareVersion' | 'ModelConfiguration' | 'ModelConfigurationSetup';
 }
 
 export interface ExplorerUIState {
@@ -14,6 +14,7 @@ export interface ExplorerUIState {
     selectedConfig:         string;
     selectedCalibration:    string;
     mode:                   string;
+    step:                   number;
     compare?:               ComparisonEntry[];
 }
 
@@ -23,6 +24,7 @@ const INITIAL_STATE: ExplorerUIState = {
     selectedConfig:         '',
     selectedCalibration:    '',
     mode:                   'view',
+    step:                   0,
     compare:                [],
 }
 
@@ -59,9 +61,8 @@ const explorerUI: Reducer<ExplorerUIState, RootAction> = (state = INITIAL_STATE,
                 ...state,
                 mode: action.mode
             }
-        case ADD_MODEL_TO_COMPARE: 
-            let comp = [ ...state.compare ];
-            comp.push(action.comparison);
+        case ADD_MODELS_TO_COMPARE: 
+            let comp = [ ... action.comparisons ];
             return {
                 ...state,
                 compare: comp
@@ -70,6 +71,11 @@ const explorerUI: Reducer<ExplorerUIState, RootAction> = (state = INITIAL_STATE,
             return {
                 ...state,
                 compare: []
+            }
+        case REGISTER_SET_STEP:
+            return {
+                ...state,
+                step: action.step
             }
         default:
             return state;

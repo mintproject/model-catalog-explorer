@@ -6,9 +6,7 @@ import { store, RootState } from '../../../app/store';
 import { html, property, customElement, css } from 'lit-element';
 
 import { goToPage } from '../../../app/actions';
-
 import { ExplorerStyles } from './explorer-styles'
-//import { explorerCompareModel } from './ui-actions'
 
 import { getId, isEmpty, isSubregion, getLatestVersion, getLatestConfiguration, getLatestSetup,
          isExecutable, getLabel } from 'model-catalog/util';
@@ -187,6 +185,10 @@ export class ModelPreview extends connect(store)(PageViewElement) {
                 loading-dots {
                     --width: 20px;
                 }
+
+                .title:hover {
+                    color:rgb(15, 122, 207);
+                }
             `
         ];
     }
@@ -196,7 +198,7 @@ export class ModelPreview extends connect(store)(PageViewElement) {
             let modelType : string[] = this._model.type ?
                     this._model.type.map(t => t.replace('Model', '')).filter(t => !!t)
                     : [];
-            console.log(modelType);
+            let modelUri : string = this._regionid + (this._url? this._url : this.PREFIX + getId(this._model));
         return html`
             <table>
               <tr>
@@ -210,24 +212,31 @@ export class ModelPreview extends connect(store)(PageViewElement) {
                   </div>
                   <div>
                     <span class="helper"></span>
+                    <a href="${modelUri}" style="color: unset; text-decoration: none;">
                     ${this._loadingLogo ? html`<wl-progress-spinner></wl-progress-spinner>`
                       : (this._logo && this._logo.value ? html`<img src="${this._logo.value[0]}"/>`
                         : html`<wl-icon id="img-placeholder">image</wl-icon>`
                       )
                     }
+                    </a>
                   </div>
                   <div class="text-centered two-lines">
-                      Category: ${this._model.hasModelCategory && this._model.hasModelCategory.length > 0 ?
-                        this._model.hasModelCategory.map(getLabel).join(', ') : html`-`}
+                    Category: ${this._model.hasModelCategory ? html`${this._model.hasModelCategory.map(getLabel).join(', ')}` : html`-`}
+                    ${modelType && modelType.length > 0? html`
                     <br/>
-                    ${modelType.length > 0 ? html`Type: ${modelType.join(', ')}`  :html``}
+                    Type: ${modelType}
+                    ` : html``}
                   </div>
                 </td>
 
                 <td class="right">
                   <div class="header"> 
-                    <span class="title">${this._model.label}</span>
-                    <span class="icon"><wl-icon @click="${()=>{this._compare(this._model.id)}}">compare_arrows</wl-icon></span>
+                    <a href="${modelUri}" style="color: unset; text-decoration: none;">
+                        <span class="title">${this._model.label}</span>
+                    </a>
+                    <span class="icon">
+                        <slot name="extra-icon"></slot>
+                    </span>
                     <span class="ver-conf-text">
                     ${this._nVersions > 0 ? this._nVersions.toString() + ' version' + (this._nVersions > 1? 's' :'') : 'No versions'},
                     ${this._nConfigs > 0 ? this._nConfigs.toString() + ' config' + (this._nConfigs > 1? 's' :'') : 'No configs'}
@@ -251,7 +260,7 @@ export class ModelPreview extends connect(store)(PageViewElement) {
                         ${this._model.keywords && this._model.keywords.length > 0 ? 
                             this._model.keywords.join(';').split(/ *; */).join(', ') : 'No keywords'}
                     </span>
-                    <a href="${this._url? this._url : this.PREFIX + getId(this._model)}" class="details-button"> 
+                    <a href="${modelUri}" class="details-button"> 
                         More details
                     </a>
                   </div>
@@ -262,12 +271,6 @@ export class ModelPreview extends connect(store)(PageViewElement) {
         } else {
             return html`Something when wrong!`
         }
-    }
-
-    _compare (uri:string) {
-        //FIXME
-        let compUrl : string = 'models/compare/' + uri.split('/').pop();
-        goToPage(compUrl);
     }
 
     stateChanged(state: RootState) {
@@ -315,8 +318,8 @@ export class ModelPreview extends connect(store)(PageViewElement) {
             }
         }
 
-        if (this._nConfigs > 0 && this._nSetups < 0 && !this._regions &&
-                ![db.configurations, db.setups, db.regions].map(isEmpty).some(b=>b)) {
+        if (this._nConfigs > 0 && this._nSetups < 0 && !this._regions && this._region &&
+                ![db.configurations, db.regions].map(isEmpty).some(b=>b)) {
             // We filter for region, so we need to compute the url, local setups and regions.
             this._regions = new Set();
             this._nLocalSetups = 0;

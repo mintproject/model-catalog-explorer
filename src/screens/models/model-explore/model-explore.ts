@@ -8,9 +8,11 @@ import { store, RootState } from 'app/store';
 import { goToPage } from 'app/actions';
 import { IdMap } from 'app/reducers';
 
-import { isEmpty } from 'model-catalog/util';
-import { Model } from '@mintproject/modelcatalog_client';
-import { modelsSearchIndex, modelsSearchIntervention, modelsSearchRegion, modelsSearchStandardVariable } from 'model-catalog/actions';
+import { isEmpty, uriToId, getLabel } from 'model-catalog/util';
+import { Model, NumericalIndex } from '@mintproject/modelcatalog_client';
+import { modelsSearchIndex, modelsSearchIntervention, numericalIndexsGet,
+         modelsSearchRegion, modelsSearchStandardVariable } from 'model-catalog/actions';
+import { CustomNotification } from 'components/notification';
 
 import './model-preview'
 import './model-view'
@@ -26,6 +28,7 @@ store.addReducers({
 
 @customElement('model-explorer')
 export class ModelExplorer extends connect(store)(PageViewElement) {
+    private _notifications : CustomNotification;
     @property({type: Object})
     private _models! : IdMap<Model>;
 
@@ -45,6 +48,14 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
 
     @property({type: Boolean})
     private _loading : boolean = true;
+
+    @property({type: Boolean})
+    private _loadingIndex : boolean = false;
+
+    @property({type: Object})
+    private _index: IdMap<NumericalIndex>;
+
+    @property({type: Object}) private _comparisonList : string[] = [];
 
     static get styles() {
         return [SharedStyles, ExplorerStyles,
@@ -146,8 +157,14 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
         goToPage('models/explore');
     }
 
+    public constructor () {
+        super();
+        this._notifications = new CustomNotification();
+    }
+
     protected render() {
         return html`
+            ${this._notifications}
             ${this._selectedUri? 
                 //Display only selected model or the search
                 html`<div id="model-view-cont"><model-view active></model-view></div>`
@@ -181,7 +198,7 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
                 --><wl-select id="search-type-selector" label="Search on" @input="${this._onSearchTypeChange}" value="${this._searchType}">
                    <option value="full-text">Name, description and keywords</option>
                    <option value="variables">Variable names</option>
-                   <option value="index">Index</option>
+                   <option value="index">Index or indicator</option>
                    <option value="intervention">Intervention</option>
                    <option value="region">Region</option>
                 </wl-select>
@@ -195,8 +212,16 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
                     <model-preview .id="${key}" ?active="${this._activeModels[key]}">
 
                       <div slot="description">
-                        ${this._models[key].description}
+                          ${this._searchType == 'index' && this._filter? 
+                            (this._models[key].usefulForCalculatingIndex || [])
+                                .map((index:NumericalIndex) => this._index[index.id])
+                                .map(getLabel)
+                                .map((l:string) => html`<span class="resource numerical-index">${l}</span>`)
+                            : this._models[key].description
+                          }
                       </div>
+
+                      <wl-icon slot="extra-icon" @click="${()=>{this._addToComparisonList(key)}}">compare_arrows</wl-icon>
 
                     </model-preview>`)
                     :html`<div class="centered-info">
@@ -209,6 +234,34 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
                 please contact us at <a href="mailto:mint-project@googlegroups.com">mint-project@googlegroups.com</a>
             </p>
         `
+    }
+
+    private _addToComparisonList (uri: string) {
+        let id : string = uriToId(uri)
+        let msg : string = "";
+        let icon : string = "";
+        if (this._comparisonList.indexOf(id) >= 0) {
+            msg = "Model already on comparison list";
+            icon = "report_problem";
+        } else {
+            this._comparisonList.push(id);
+            msg = "Model added to comparison list";
+            icon = "done";
+        }
+
+        if (this._comparisonList.length < 2) {
+            this._notifications.custom(msg, icon);
+        } else {
+            let buttonName : string = "Compare";
+            let url : string = 'models/compare/model=' + this._comparisonList.join('&model=');
+            let me = this;
+            let buttonFn = function () {
+                me._comparisonList = [];
+                goToPage(url);
+            };
+
+            this._notifications.custom(msg, icon, buttonName, buttonFn);
+        }
     }
 
     updated () {
@@ -306,7 +359,19 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
             Object.keys(this._models).forEach((key:string) => {
                 this._activeModels[key] = false;
             })
-            this._lastTimeout = setTimeout(
+            if (!this._loadingIndex) {
+                this._loading=false;
+                let matches : NumericalIndex[] = Object.values(this._index)
+                    .filter((i:NumericalIndex) => getLabel(i).toLowerCase().includes(input));
+                Object.values(this._models).forEach((m:Model) => {
+                    if (m && m.usefulForCalculatingIndex) {
+                        this._activeModels[m.id] = m.usefulForCalculatingIndex.some((il:NumericalIndex) => {
+                            return matches.some((ix) => ix.id == il.id);
+                        })
+                    }
+                })
+            }
+            /*this._lastTimeout = setTimeout(
                 ()=>{ 
                     let req = modelsSearchIndex(input);
                     req.then((result:any) => {
@@ -317,7 +382,7 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
                         });
                         this._loading=false;
                     });
-                }, 750);
+                }, 750);*/
         } else {
             this._loading=false;
             this._clearSearchInput();
@@ -378,6 +443,14 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
         }
     }
 
+    firstUpdated () {
+        this._loadingIndex = true;
+        store.dispatch( numericalIndexsGet () ).then((indices:IdMap<NumericalIndex>) => {
+            this._loadingIndex = false;
+            this._index = indices;
+        })
+    }
+
     stateChanged(state: RootState) {
         if (state.explorerUI && state.explorerUI.selectedModel != this._selectedUri) {
             this._selectedUri = state.explorerUI.selectedModel;
@@ -394,7 +467,9 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
                     this._fullText[model.id] = (
                         (model.label ? model.label.join() : '') +
                         (model.description ? model.description.join() : '') +
-                        (model.keywords ? model.keywords.join() : '')
+                        (model.keywords ? model.keywords.join() : '') +
+                        (model.hasModelCategory && model.hasModelCategory.length > 0 ?
+                                model.hasModelCategory.map(getLabel).join(', ') : '')
                     ).toLowerCase();
                 });
                 this._activeModels = {};
