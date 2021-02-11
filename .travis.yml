@@ -13,17 +13,10 @@ before_deploy:
 - eval "$(ssh-agent -s)"
 - chmod 600 id_travis_rsa
 - ssh-add id_travis_rsa
-- mv build mint-ui-lit
 deploy:
 - provider: script
   skip_cleanup: true
-  script: bash scripts/deploy.sh $TRAVIS_BUILD_DIR/model-catalog-explorer model-catalog_$TRAVIS_BRANCH
+  script: bash scripts/deploy.sh $TRAVIS_BUILD_DIR/build model-explorer_$TRAVIS_BRANCH
   on:
     all_branches: true
     condition: "$TRAVIS_BRANCH =~ ^(master|travis|wildfire)$"
-- provider: script
-  skip_cleanup: true
-  script: bash scripts/deploy.sh $TRAVIS_BUILD_DIR/model-catalog-explorer model-catalog_$TRAVIS_TAG
-  on:
-    tags: true
-    all_branches: true
