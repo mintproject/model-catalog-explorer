@@ -9,5 +9,6 @@ if [ "$#" -ne 2 ]; then
 fi
 echo "Tag: $TRAVIS_TAG"
 echo "Branch:  $TRAVIS_BRANCH"
+echo "Moving from $SOURCE_DIR to $DEST_DIR"
 rsync -r --delete-after $SOURCE_DIR  mintui@mint.isi.edu:$DEST_DIR
 exit $?	

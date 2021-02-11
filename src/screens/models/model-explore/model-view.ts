@@ -70,6 +70,7 @@ export class ModelView extends connect(store)(PageViewElement) {
     @property({type: Object}) private _softwareImages : IdMap<SoftwareImage> = {} as IdMap<SoftwareImage>;
     @property({type: Object}) private _parameters : IdMap<Parameter> = {} as IdMap<Parameter>;
     @property({type: Object}) private _datasetSpecifications : IdMap<DatasetSpecification> = {} as IdMap<DatasetSpecification>;
+    @property({type: Object}) private _datasetSpecifications2 : IdMap<DatasetSpecification> = {} as IdMap<DatasetSpecification>;
     @property({type: Object}) private _interventions : IdMap<Intervention> = {} as IdMap<Intervention>;
     @property({type: Object}) private _variablePresentations : IdMap<VariablePresentation> = {} as IdMap<VariablePresentation>;
 
@@ -85,6 +86,8 @@ export class ModelView extends connect(store)(PageViewElement) {
     @property({type: Boolean}) private _loadingGlobals : boolean = false;
     @property({type: Boolean}) private _loadingRegions : boolean = false;
     @property({type: String}) private _tab : tabType = 'overview';
+
+    @property({type: Boolean}) private _setupNotFound : boolean = false;
 
     private _emulators = {
         'https://w3id.org/okn/i/mint/CYCLES' : '/emulators/cycles',
@@ -428,6 +431,10 @@ export class ModelView extends connect(store)(PageViewElement) {
         })
     }
 
+    _editModel () {
+        goToPage('models/edit/' + getURL(this._selectedModel));
+    }
+
     _goToEdit (configUri: string, setupUri?:string) {
         goToPage('models/configure/' + getURL(this._selectedModel, this._selectedVersion, configUri, setupUri));
     }
@@ -480,10 +487,20 @@ export class ModelView extends connect(store)(PageViewElement) {
         } 
     }
 
+    _clearVariables () {
+        /* This does not work 
+        let wls = this.shadowRoot.querySelectorAll('wl-expansion');
+        wls.forEach((exp) => exp.checked = false); */
+        if (this._tab === "variables") {
+            this._tab = "overview";
+        }
+    }
+
     _onConfigChange () {
         let configSelectorWl : Select = this.shadowRoot!.getElementById('config-selector') as Select;
         let configSelector : HTMLSelectElement | null = configSelectorWl? configSelectorWl.getElementsByTagName('select')[0] : null;
         if (configSelectorWl && configSelector) {
+            this._clearVariables();
             let cfgURL : string = configSelector.value;
             let ver = Object.values(this._versions).filter((ver:SoftwareVersion) =>
                 (ver.hasConfiguration||[]).some((cfg:ModelConfiguration) => cfg.id === cfgURL)
@@ -528,6 +545,7 @@ export class ModelView extends connect(store)(PageViewElement) {
         let setupSelectorWl : Select = this.shadowRoot!.getElementById('setup-selector') as Select;
         let setupSelector : HTMLSelectElement | null = setupSelectorWl? setupSelectorWl.getElementsByTagName('select')[0] : null;
         if (setupSelectorWl && setupSelector) {
+            this._clearVariables();
             let setupURL : string = setupSelector.value;
             goToPage(this.PREFIX + getURL(this._model, this._version, this._config, setupURL));
         }
@@ -633,7 +651,11 @@ export class ModelView extends connect(store)(PageViewElement) {
                                 <span class="rdf-icon">
                             </wl-button>
                         </a>
-                        ${this._model.label}
+                        <span>${getLabel(this._model)}</span>
+                        <!--wl-button style="--button-font-size: 16px; --button-padding: 8px; float: right;" flat inverted 
+                                @click="{() => this._editModel()}">
+                            <wl-icon>edit</wl-icon>
+                        </wl-button-->
                     </wl-title>
                 </div>
                 <div class="col-img text-centered">
@@ -646,7 +668,7 @@ export class ModelView extends connect(store)(PageViewElement) {
                             )
                     ): 'No logo'}
                     ${this._model.dateCreated ?
-                      html`<div><b>Creation date:</b> ${this._model.dateCreated}</div>`
+                      html`<div><b>Creation date:</b> ${this._model.dateCreated[0].toString().replace(/T.*$/,'')}</div>`
                       :''}
                     ${this._model.hasModelCategory ?
                       html`<div><b>Category:</b> ${this._model.hasModelCategory.map(getLabel).join(', ')}</div>`
@@ -656,12 +678,6 @@ export class ModelView extends connect(store)(PageViewElement) {
                 <div class="col-desc">
                     <wl-divider style="margin-bottom: .5em;"></wl-divider>
                     <wl-text style="text-align: justify;">${this._model.description}</wl-text>
-                    ${this._emulators[this._selectedModel] ?  html`
-                    <div style="margin-top: 4px;">
-                        You can see execution results for this model on
-                        <a href="${'/'+this._regionid+this._emulators[this._selectedModel]}">the emulators page</a>.
-                    </div>` 
-                    : ''}
                     <div class="desc-ext">
                         ${this._model.author?
                           html`<wl-text><b>• Authors:</b> ${this._renderAuthors(this._model.author)}</wl-text>` 
@@ -703,6 +719,10 @@ export class ModelView extends connect(store)(PageViewElement) {
                         </wl-text>` :''}
                     </div>
                     ${this._renderSelectors()}
+                    ${this._setupNotFound ? html`
+                    <p style="text-align: center; color:red;">
+                        The setup ${this._selectedSetup ? this._selectedSetup.split('/').pop() : 'selected'} is private or was deleted 
+                    </p>` : ''}
                 </div>
 
                 <div class="row-tab-header">
@@ -771,6 +791,13 @@ export class ModelView extends connect(store)(PageViewElement) {
     }
 
     private _renderTableTechnical (resource:ModelConfiguration|ModelConfigurationSetup, titlePrefix:string) {
+        //Do no show when the model does not have any technical property
+        if (!resource.hasSoftwareImage && !resource.operatingSystems && !resource.memoryRequirements && 
+            !resource.processorRequirements && !resource.softwareRequirements && !resource.hasDownloadURL &&
+            !resource.hasInstallationInstructions && !resource.hasComponentLocation && !resource.hasSourceCode) {
+            return html``;
+        }
+
         return html`
             <table class="pure-table pure-table-striped">
                 <thead>
@@ -847,6 +874,19 @@ export class ModelView extends connect(store)(PageViewElement) {
                             html`${resource.hasSourceCode[0].id} <loading-dots style="--width: 20px"></loading-dots>`
                             : this._sourceCodes[resource.hasSourceCode[0].id].programmingLanguage
                         }</td>
+                    </tr>`: ''}
+                ${titlePrefix == 'CONFIGURATION' || titlePrefix == 'SETUP' ? html`
+                    <tr>
+                        <td><b>DAME command:</b></td>
+                        <td>
+                            <div class="monospaced">
+                                <div>
+                                    <span style="color: darkgray;">$</span> dame run 
+                                    ${titlePrefix == 'CONFIGURATION' ?
+                                        uriToId(this._selectedConfig) : uriToId(this._selectedSetup) }
+                                </div>
+                            </div>
+                        </td>
                     </tr>`: ''}
                 </tbody>
             </table>`;
@@ -984,7 +1024,7 @@ export class ModelView extends connect(store)(PageViewElement) {
                     ${this._config.hasProcess && this._config.hasProcess.length > 0 ?
                         html`<wl-text><b>• Processes:</b> ${this._renderProcesses(this._config.hasProcess)}</wl-text>` :''}
                 </div>
-                ${this._selectedSetup ?
+                ${this._selectedSetup && !this._setupNotFound?
                     this._loading[this._selectedSetup] ? 
                         html`<div class="text-centered"><wl-progress-spinner></wl-progress-spinner></div>`
                         : (this._setup ? this._renderSetupResume() : '')
@@ -1218,22 +1258,18 @@ export class ModelView extends connect(store)(PageViewElement) {
                             <div class="text-centered">This ${isSetup? 'setup' : 'configuration'} has no inputs.</div>
                         </td>
                     </tr>` : html`
-                    ${resource.hasInput.filter((ds:DatasetSpecification) => !this._loading[ds.id])
+                    ${resource.hasInput
+                            .filter((ds:DatasetSpecification) => !this._loading[ds.id])
                             .map((ds:DatasetSpecification) => this._datasetSpecifications[ds.id])
-                            .sort(sortByPosition).map((ds:DatasetSpecification) => html`
+                            .sort(sortByPosition)
+                            .map((ds:DatasetSpecification) => html`
                     <tr>
                         <td></td>
                         <td><span class="monospaced">${getLabel(ds)}</span></td>
                         <td>${ds.description && ds.description.length > 0 ? ds.description : ''}</td>
                         ${isSetup? html`
                         <td style="text-align: right;">
-                            ${ds.hasFixedResource && ds.hasFixedResource.length > 0 &&
-                              ds.hasFixedResource[0].value && ds.hasFixedResource[0].value.length > 0 ? html`
-                                <a target="_blank" href="${ds.hasFixedResource[0].value[0]}">
-                                    ${(<unknown>ds.hasFixedResource[0].value[0] as string).split('/').pop()}
-                                    <!-- FIXME: The model catalog defines hasFixedResource as Object -->
-                                </a>
-                            `: html`<span style="color:#999999;">-</span>`}
+                            ${this._renderFixedResource(ds)}
                         </td>` : ''}
                         <td style="text-align: right;" class="number">
                             ${ds.hasFormat && ds.hasFormat.length > 0 ? ds.hasFormat[0] : ''}
@@ -1292,6 +1328,20 @@ export class ModelView extends connect(store)(PageViewElement) {
             </table>`
     }
 
+    private _renderFixedResource (ds: DatasetSpecification) {
+        if (this._datasetSpecifications2[ds.id])
+            ds = this._datasetSpecifications2[ds.id];
+        return html`
+            ${ds.hasFixedResource && ds.hasFixedResource.length > 0 &&
+              ds.hasFixedResource[0].value && ds.hasFixedResource[0].value.length > 0 ? html`
+                <a target="_blank" href="${ds.hasFixedResource[0].value[0]}">
+                    ${(<unknown>ds.hasFixedResource[0].value[0] as string).split('/').pop()}
+                    <!-- FIXME: The model catalog defines hasFixedResource as Object -->
+                </a>
+            `: html`<span style="color:#999999;">-</span>`}
+        `;
+    }
+
     private _renderTabExample () {
         return html`<div id="mk-example"></div>`
     }
@@ -1323,7 +1373,9 @@ export class ModelView extends connect(store)(PageViewElement) {
         return html`
             <wl-title level="3">${title}:</wl-title>
             ${dsArr.map((ds:DatasetSpecification) => html`
-            <wl-expansion id="${getLabel(ds)}" name="${title}" @click="${() => this._expandDS(ds)}" style="overflow-y: hidden;">
+            <wl-expansion id="${getLabel(ds)}" name="${title}" @click="${() => this._expandDS(ds)}"
+                    .disabled=${this._loading[ds.id]}
+                    style="overflow-y: hidden;">
                 <span slot="title" style="flex-grow: unset;">
                     ${this._loading[ds.id] ? 
                         getLabel(ds)
@@ -1349,7 +1401,7 @@ export class ModelView extends connect(store)(PageViewElement) {
                         : html`
                         <table class="pure-table pure-table-bordered">
                             <thead>
-                                <th>Label</th>
+                                <th>Name</th>
                                 <th>Long Name</th>
                                 <th>Description</th>
                                 <th>Standard Name</th>
@@ -1395,6 +1447,13 @@ export class ModelView extends connect(store)(PageViewElement) {
         `
     }
 
+    private _closeAllExpansions () {
+        let allExp = this.shadowRoot.querySelectorAll('wl-expansion');
+        if (allExp && allExp.length > 0) {
+            allExp.forEach(exp => exp["checked"] = false);
+        }
+    }
+
     private _expandDS (ds: DatasetSpecification) {
         if (!this._loading[ds.id]) {
             if (!this._loadedPresentations[ds.id]) {
@@ -1403,13 +1462,9 @@ export class ModelView extends connect(store)(PageViewElement) {
                 let dataset = this._datasetSpecifications[ds.id];
                 if (dataset.hasPresentation && dataset.hasPresentation.length > 0)
                     this._loadVariablePresentations(dataset.hasPresentation, db);
-                else
+                else 
                     this.requestUpdate();
             }
-        } else {
-            setTimeout(() => {
-                this._expandDS(ds);
-            }, 500);
         }
     }
 
@@ -1614,7 +1669,7 @@ export class ModelView extends connect(store)(PageViewElement) {
                                         (cfg.hasSetup || [])
                                             .map((setup:ModelConfigurationSetup) => this._setups[setup.id])
                                             .forEach((setup:ModelConfigurationSetup) => {
-                                                (setup.hasRegion || [])
+                                                (setup && setup.hasRegion ? setup.hasRegion : [])
                                                     .map((region:Region) => db.regions[region.id])
                                                     .forEach((region:Region) => regions.add(region.id));
                                             });
@@ -1684,6 +1739,7 @@ export class ModelView extends connect(store)(PageViewElement) {
                 this._shouldUpdateSetups = true;
                 if (this._selectedSetup) {
                     setupGetAll(this._selectedSetup).then((setup:ModelConfigurationSetup) => {
+                        this._setupNotFound = false;
                         // Save authors 
                         (setup.author || []).forEach((author:Person|Organization) => {
                             if (author.type && author.type.includes("Person")) {
@@ -1714,21 +1770,24 @@ export class ModelView extends connect(store)(PageViewElement) {
                         (setup.hasSoftwareImage || []).forEach((si:SoftwareImage) => {
                             this._softwareImages[si.id] = si;
                         });
-                        // Save parameters
-                        (setup.hasParameter || []).forEach((parameter:Parameter) => {
-                            //FIXME: this does not return relevantForIntervention (id=undefined)
-                            if (!this._parameters[parameter.id]) this._parameters[parameter.id] = parameter;
-                        });
-                        // Save IO
-                        (setup.hasInput || []).concat(setup.hasOutput || []).forEach((ds:DatasetSpecification) => {
+
+                        if (setup.hasParameter) this._loadParameters(setup.hasParameter, db);
+                        if (setup.hasInput) this._loadDatasetSpecifications(setup.hasInput, db);
+                        if (setup.hasOutput) this._loadDatasetSpecifications(setup.hasOutput, db);
+
+                        (setup.hasInput || []).concat(setup.hasOutput || []).forEach((ds:DatasetSpecification) => {
                             //FIXME: this does not return hasFixedValue -> hasPart
-                            this._datasetSpecifications[ds.id] = ds;
+                            this._datasetSpecifications2[ds.id] = ds;
                         });
-                        
+
                         this._setup = setup;
-                        //console.log('setup', setup);
+                        this._closeAllExpansions();
                         this._loading[this._selectedSetup] = false;
-                    })
+                    }).catch((error) => {
+                        if (error.status == 404) {
+                            this._setupNotFound = true;
+                        }
+                    });
                 }
             }
 
@@ -1747,7 +1806,7 @@ export class ModelView extends connect(store)(PageViewElement) {
                                     .map((setup:ModelConfigurationSetup) => this._setups[setup.id])
                                     .filter((setup:ModelConfigurationSetup) => !!setup)
                                     .forEach((setup:ModelConfigurationSetup) => {
-                                        (setup.hasRegion || [])
+                                        (setup && setup.hasRegion ? setup.hasRegion : [])
                                             .map((region:Region) => db.regions[region.id])
                                             .forEach((region:Region) => regions.add(region.id));
                                     });
@@ -1789,6 +1848,32 @@ export class ModelView extends connect(store)(PageViewElement) {
     }
 
     private _renderAuthors (authorArray: (Person|Organization)[]) {
+        //HACK
+        if (this._selectedModel === "https://w3id.org/okn/i/mint/CYCLES") {
+            authorArray = [
+                {
+                    id: "https://w3id.org/okn/i/mint/kemanian_armen",
+                    label: ["Armen Kemanian"],
+                    type: ["Person", "Thing"]
+                } as Person,
+                {
+                    id: "https://w3id.org/okn/i/mint/shi_yuning",
+                    label: ["Yuning Shi"],
+                    type: ["Person", "Thing"]
+                } as Person,
+                {
+                    id: "https://w3id.org/okn/i/mint/white_charlie",
+                    label: ["Charlie M. White"],
+                    type: ["Person", "Thing"]
+                } as Person,
+                {
+                    id: "https://w3id.org/okn/i/mint/stockle_claudio",
+                    label: ["Claudio O. Stockle"],
+                    type: ["Person", "Thing"]
+                } as Person
+            ]
+        }
+
         return (authorArray || []).map((author:Person|Organization) => {
             if (this._loading[author.id]) {
                 return html`${getId(author)} <loading-dots style="--width: 20px"></loading-dots>&nbsp;`
@@ -1879,15 +1964,11 @@ export class ModelView extends connect(store)(PageViewElement) {
         return this._loading[ti.id] ? 
             html`${getId(ti)} <loading-dots style="--width: 20px"></loading-dots>&nbsp;`
             : html`<span class="resource time-interval">
-                <div style="display: flex; justify-content: space-between;">
-                    <span style="text-decoration: underline;">${getLabel(this._timeIntervals[ti.id])}</span>
-                    <span style="margin-left:20px;">
-                        ${this._timeIntervals[ti.id].intervalValue}
-                        ${this._timeIntervals[ti.id].intervalUnit && this._timeIntervals[ti.id].intervalUnit.length > 0 ? 
-                            getLabel(this._timeIntervals[ti.id].intervalUnit[0]) : ''}
-                    </span>
-                </div>
-                <div style="font-style: oblique; color: gray;">${this._timeIntervals[ti.id].description}</div>
+                <span>
+                    ${this._timeIntervals[ti.id].intervalValue}
+                    ${this._timeIntervals[ti.id].intervalUnit && this._timeIntervals[ti.id].intervalUnit.length > 0 ? 
+                        getLabel(this._timeIntervals[ti.id].intervalUnit[0]) : ''}
+                </span>
             </span>`
     }
 
@@ -1911,33 +1992,28 @@ export class ModelView extends connect(store)(PageViewElement) {
             html`${getId(grid)} <loading-dots style="--width: 20px"></loading-dots>&nbsp;`
             : html`<span class="resource grid">
                 <div style="display: flex; justify-content: space-between;">
-                    <span style="text-decoration: underline;">${getLabel(this._grids[grid.id])}</span>
-                    <span style="margin-left:20px; font-style: oblique; color: gray;">
+                    <span style="text-decoration: underline;">
                         ${this._grids[grid.id].type.filter(t => t != 'Grid')}
+                    </span>
+                    <span style="margin-left:20px;">
+                        ${this._grids[grid.id].hasDimension && this._grids[grid.id].hasDimension.length > 0 ?  html`
+                            <span>Dimensions:</span>
+                            <span class="number"> ${this._grids[grid.id].hasDimension[0]} </span>` : ""}
                     </span>
                 </div>
                 <div style="display: flex; justify-content: space-between;">
+                    ${this._grids[grid.id].hasSpatialResolution && this._grids[grid.id].hasSpatialResolution.length > 0 ?
+                    html`
                     <span>
                         <span>Spatial resolution:</span>
-                        <span class="monospaced">
-                            ${this._grids[grid.id].hasSpatialResolution && this._grids[grid.id].hasSpatialResolution.length > 0 ?
-                                this._grids[grid.id].hasSpatialResolution[0] : '-'}
-                        </span>
-                    </span>
-                        <span>Dimensions:</span>
-                        <span class="number">
-                            ${this._grids[grid.id].hasDimension && this._grids[grid.id].hasDimension.length > 0 ?
-                                this._grids[grid.id].hasDimension[0] : '-'}
-                        </span>
-                    <span>
-                    </span>
-                    <span>
+                        <span class="monospaced"> ${this._grids[grid.id].hasSpatialResolution[0]} </span>
+                    </span>`: ""}
+                    ${this._grids[grid.id].hasShape && this._grids[grid.id].hasShape.length > 0 ? html`
+                    <span style="${this._grids[grid.id].hasSpatialResolution && this._grids[grid.id].hasSpatialResolution.length > 0 ?
+                            'margin-left:20px;' : ''}">
                         <span>Shape:</span>
-                        <span class="monospaced">
-                            ${this._grids[grid.id].hasShape && this._grids[grid.id].hasShape.length > 0 ?
-                                this._grids[grid.id].hasShape[0] : '-'}
-                        </span>
-                    </span>
+                        <span class="monospaced"> ${this._grids[grid.id].hasShape[0]} </span>
+                    </span>` : ""}
                 </div>
             </span>`
     }

@@ -16,9 +16,8 @@ import { selectSubRegion } from 'app/ui-actions';
 import { modelsGet, versionsGet, modelConfigurationsGet, modelConfigurationSetupsGet, regionsGet, geoShapesGet,
          datasetSpecificationGet, sampleResourceGet, sampleCollectionGet, setupGetAll } from 'model-catalog/actions';
 
-import { isSubregion, getLabel } from 'model-catalog/util';
-import { GeoShape, Region, Model, SoftwareVersion, ModelCategory,
-         ModelConfiguration, ModelConfigurationSetup } from '@mintproject/modelcatalog_client';
+import { isSubregion, isMainRegion, getLabel } from 'model-catalog/util';
+import { GeoShape, Region, Model, SoftwareVersion, ModelConfiguration, ModelConfigurationSetup } from '@mintproject/modelcatalog_client';
 import { Dataset } from "screens/datasets/reducers";
 
 import { queryDatasetResourcesAndSave, queryDatasetResourcesRaw } from 'screens/datasets/actions';
@@ -150,8 +149,14 @@ export class RegionModels extends connect(store)(PageViewElement)  {
             [bbox.xmax, bbox.ymin],
             [bbox.xmax, bbox.ymax]
         ];
-        let poly = JSON.parse(region.geojson_blob).geometry.coordinates[0][0];
-        return points.some((point) => this._pointInPolygon(point, poly));
+        
+        for(let index in region.geometries) {
+            let geometry: any = region.geometries[index];
+            let poly = geometry.coordinates[0][0];
+            if(points.some((point) => this._pointInPolygon(point, poly)))
+                return true;
+        }
+        return false;
     }
 
     private _getMatchingModels() {
@@ -168,19 +173,20 @@ export class RegionModels extends connect(store)(PageViewElement)  {
         let parentRegion : string = this._region.model_catalog_uri;
 
         Object.values(this._regions).forEach((region:Region) => {
-            (region.geo || []).forEach((geo:GeoShape) => {
-                let geoshape = this._geoShapes[geo.id];
-                if (geoshape && geoshape.bbox) {
-                    let bbox : BoundingBox = geoshape.bbox;
-                    if (bbox && bbox.xmin && this._doBoxesIntersect(bbox, selbox) && isSubregion(parentRegion, region)) {
-                        // A point inside the bbox does not mean that the point is inside the polygon
-                        let area : number = (bbox.xmax - bbox.xmin) * (bbox.ymax - bbox.ymin);
-                        if (area >= selArea || this._bboxInRegion(bbox, this._selectedRegion) ) {
-                            regions.add(region.id);
+            if (!isMainRegion(region))
+                (region.geo || []).forEach((geo:GeoShape) => {
+                    let geoshape = this._geoShapes[geo.id];
+                    if (geoshape && geoshape.bbox) {
+                        let bbox : BoundingBox = geoshape.bbox;
+                        if (bbox && bbox.xmin && this._doBoxesIntersect(bbox, selbox) && isSubregion(parentRegion, region)) {
+                            // A point inside the bbox does not mean that the point is inside the polygon
+                            let area : number = (bbox.xmax - bbox.xmin) * (bbox.ymax - bbox.ymin);
+                            if (area >= selArea || this._bboxInRegion(bbox, this._selectedRegion) ) {
+                                regions.add(region.id);
+                            }
                         }
                     }
-                }
-            });
+                });
         });
         //console.log('regions:', regions);
 
@@ -196,16 +202,16 @@ export class RegionModels extends connect(store)(PageViewElement)  {
 
         this._categorizedMatchingSetups = this._matchingSetups
                 .reduce((map:IdMap<ModelConfigurationSetup[]>, setup:ModelConfigurationSetup) => {
+            let categories : string[] = null
             if (setup.hasModelCategory && setup.hasModelCategory.length > 0) {
-                setup.hasModelCategory.map(getLabel).forEach((cat:string) => {
-                    if (!map[cat]) map[cat] = [setup];
-                    else map[cat].push(setup)
-                });
+                categories = setup.hasModelCategory.map(getLabel);
             } else {
-                let cat : string = 'Uncategorized'; 
+                categories = ['Uncategorized'];
+            }
+            categories.forEach((cat:string) => {
                 if (!map[cat]) map[cat] = [setup];
                 else map[cat].push(setup)
-            }
+            });
             return map;
         }, {});
         this._loadingSetups = false;

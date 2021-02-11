@@ -18,12 +18,21 @@ import { store, RootState } from './store';
 
 // These are the actions needed by this element.
 import {
-  navigate, fetchUser, signOut, signIn, goToPage, fetchMintConfig,
+  navigate, fetchUser, signOut, signIn, signUp, goToPage, fetchMintConfig, setUserProfile, resetPassword,
 } from './actions';
-import { listTopRegions, listSubRegions } from '../screens/regions/actions';
+import { UserPreferences, UserProfile } from './reducers';
+import { listTopRegions, listSubRegions, listRegionCategories } from '../screens/regions/actions';
 
 import { modelsGet, versionsGet, modelConfigurationsGet, modelConfigurationSetupsGet, processesGet, 
          regionsGet, imagesGet } from 'model-catalog/actions';
+import 'components/notification';
+
+import "weightless/popover";
+import "weightless/radio";
+import { Select } from 'weightless/select';
+import { Radio } from 'weightless/radio';
+
+import { Popover } from "weightless/popover";
 import { CustomNotification } from 'components/notification';
 import 'components/notification';
 
@@ -52,6 +61,16 @@ export class MintApp extends connect(store)(LitElement) {
   @property({type: String}) private _selectedVersion = '';
   @property({type: String}) private _selectedConfig = '';
   @property({type: String}) private _selectedSetup = '';
+  private _mainRegion = '';
+
+  @property({type: String})
+  private _defGraph = '';
+
+  @property({type: Boolean})
+  private _creatingAccount = false;
+
+  @property({type: Boolean})
+  private _resetingPassword = false;
 
   @property({type:Boolean})
   private _drawerOpened = false;
@@ -65,7 +84,12 @@ export class MintApp extends connect(store)(LitElement) {
   @property({type: Object})
   private _model;
 
+  @property({type: Array})
+  private _topRegions : string[] = [];
+
+  private _dispatchedRegionsQuery : boolean = false;
   private _dispatchedSubRegionsQuery : boolean = false;
+  private _dispatchedVariablesQuery : boolean = false;
 
   private _loggedIntoWings = false;
 
@@ -88,7 +112,6 @@ export class MintApp extends connect(store)(LitElement) {
         height: 100%;
         width: 100%;
         overflow: auto;
-        background: #F6F6F6;
       }
 
       div#left {
@@ -112,11 +135,6 @@ export class MintApp extends connect(store)(LitElement) {
         bottom: 0;
         width: 100%;
         transition: width 0.2s;
-      }
-
-      .card {
-        height: calc(100% - 100px);
-        overflow: auto;
       }
       
       .breadcrumbs {
@@ -159,6 +177,46 @@ export class MintApp extends connect(store)(LitElement) {
       }
       .message-button:hover {
         background-color: rgb(224, 224, 224);
+      }
+      #breadcrumbs-menu-button {
+        display:none;
+      }
+      .small-screen {
+        display: none;
+      }
+
+      @media (max-width: 1024px) {
+        #main-breadcrumbs {
+          display: none;
+        }
+        #breadcrumbs-menu-button {
+          display: inline-block;
+        }
+        #breadcrumbs-popover wl-button {
+          display: block;
+        }
+        #main-breadcrumbs .emulator-button {
+          display: none;
+        }
+        wl-nav {
+          --nav-padding: 0px;
+        }
+        wl-button.active {
+          --button-bg: #629b30 !important;
+        }
+        .emulators-button {
+          display: none;
+        }
+        .small-screen {
+          display: flex;
+        }
+        .sectionframe {
+          display: block;
+          height: 100%;
+          width: 100%;
+          overflow: auto;
+          background: #F6F6F6;
+        }
       }
 
       #info {
@@ -277,9 +335,16 @@ export class MintApp extends connect(store)(LitElement) {
             `
             :
             html `
-            <wl-button flat inverted @click="${signOut}">
-              LOGOUT ${this.user.email}
+            <wl-button id="user-button" flat inverted @click="${this._onUserButtonClicked}">
+               ${this.user.email}
             </wl-button>
+            <wl-popover id="user-popover" anchor="#user-button" fixed
+                transformOriginX="right" transformOriginY="top" anchorOriginX="right" anchorOriginY="bottom">
+                <div style="background: #fff; padding: 5px 10px; border: 1px solid #ddd; border-radius: 3px; display: flex; flex-direction: column;">
+                    <wl-button flat inverted @click="${this._showConfigWindow}"> CONFIGURE </wl-button>
+                    <wl-button flat inverted @click="${signOut}"> LOGOUT </wl-button>
+                </div>
+            </wl-popover>
             `
           }
         </div>
@@ -288,7 +353,6 @@ export class MintApp extends connect(store)(LitElement) {
           <img style="margin-left: 6px;" height="40" src="/images/logo.png">
         </wl-button>
       </wl-nav>
-
 
         <div class="sectionframe">
           <div id="right">
@@ -327,7 +391,8 @@ export class MintApp extends connect(store)(LitElement) {
         </div>
     </div>
 
-    ${this._renderDialogs()}
+    ${this._renderLoginDialog()}
+    ${this._renderConfigureUserDialog()}
     `;
   }
 
@@ -340,28 +405,84 @@ export class MintApp extends connect(store)(LitElement) {
         return uri;
     }
 
-  _renderDialogs() {
+  _onUserButtonClicked () {
+    let pop : Popover = this.shadowRoot.querySelector("#user-popover");
+    if (pop) pop.show();//.then(result => console.log(result));
+  }
+
+  _onBreadcrumbsMenuButtonClicked () {
+    let pop : Popover = this.shadowRoot.querySelector("#breadcrumbs-popover");
+    if (pop) pop.show();//.then(result => console.log(result));
+  }
+
+  _renderLoginDialog() {
     return html`
     <wl-dialog id="loginDialog" fixed backdrop blockscrolling>
-      <h3 slot="header">Please enter your username and password for MINT</h3>
+      <h3 slot="header">
+        ${this._creatingAccount ? 
+          'Choose an email and password for your MINT account' :
+          (this._resetingPassword ? 
+            'Enter your email to reset your password'
+            : 'Please enter your email and password for MINT')}
+      </h3>
       <div slot="content">
-        <p></p>      
+        <p></p>
         <form id="loginForm">
           <div class="input_full">
-            <label>Username</label>
-            <input name="username" type="text"></input>
+            <label>Email</label>
+            <input name="username" type="email"></input>
           </div>
+          ${this._resetingPassword ? '' : html`
           <p></p>
           <div class="input_full">
             <label>Password</label>
             <input name="password" type="password" @keyup="${this._onPWKey}"></input>
           </div>
-
+          `}
         </form>
+        ${this._creatingAccount || this._resetingPassword ? 
+            ''
+            : html`<p></p><a @click="${() => {this._resetingPassword = true;}}">Reset your password</a>`}
       </div>
+      <div slot="footer" style="justify-content: space-between;">
+          ${this._creatingAccount || this._resetingPassword ? 
+            html`<span></span>` :
+            html`<wl-button @click="${this._createAccountActivate}">Create account</wl-button>`}
+          <span>
+              <wl-button @click="${this._onLoginCancel}" inverted flat>Cancel</wl-button>
+              <wl-button @click="${this._onLogin}" class="submit" id="dialog-submit-button">
+                  ${this._resetingPassword ? 'Reset password' : 'Submit'}
+              </wl-button>
+          </span>
+      </div>
+    </wl-dialog>
+    `;
+  }
+
+  _renderConfigureUserDialog () {
+    return html`
+    <wl-dialog id="configDialog" fixed backdrop blockscrolling>
+      <h3 slot="header">
+          Configure your MINT account
+      </h3>
+      <div slot="content">
+        <p></p>
+
+        <wl-label>Model catalog graph:</wl-label>
+        <div style="margin-top: 4px;">
+
+            <wl-radio id="gpublic" name="graph" ?checked=${!this._defGraph}></wl-radio>
+            <wl-label for="gpublic" style="padding: 5px;"> Public graph (mint@isi.edu) </wl-label>
+        </div>
+        <div style="margin-top: 4px;">
+            <wl-radio id="gpersonal" name="graph" ?checked=${this.user && this.user.email == this._defGraph}></wl-radio>
+            <wl-label for="gpersonal" style="padding: 5px;"> My graph </wl-label>
+        </div>
+      </div>
+
       <div slot="footer">
-          <wl-button @click="${this._onLoginCancel}" inverted flat>Cancel</wl-button>
-          <wl-button @click="${this._onLogin}" class="submit" id="dialog-submit-button">Submit</wl-button>
+        <wl-button @click="${this._onConfigCancel}" inverted flat>Cancel</wl-button>
+        <wl-button @click="${this._onConfigSave}" class="submit">Save</wl-button>
       </div>
     </wl-dialog>
     `;
@@ -377,22 +498,79 @@ export class MintApp extends connect(store)(LitElement) {
     showDialog("loginDialog", this.shadowRoot!);
   }
 
+  _showConfigWindow() {
+    showDialog("configDialog", this.shadowRoot!);
+  }
+
+  _createAccountActivate () {
+    this._creatingAccount = true;
+  }
+
+  _onConfigCancel () {
+        hideDialog("configDialog", this.shadowRoot!);
+  }
+
+  _onConfigSave () {
+    let inputPublicGraph : Select  = this.shadowRoot.getElementById('gpublic') as Select;
+    let inputPrivateGraph : Radio  = this.shadowRoot.getElementById('gpersonal') as Radio;
+    let notification : CustomNotification = this.shadowRoot.querySelector<CustomNotification>("#custom-notification")!;
+    if (inputPublicGraph && inputPrivateGraph) {
+        let profile : UserProfile = {
+            graph: inputPrivateGraph.checked ? this.user.email : ''
+        }
+        console.log('new profile:', profile);
+        store.dispatch(
+            setUserProfile(this.user, profile)
+        ).then(() => {
+            if (notification) notification.save("Saved");
+            this._onConfigCancel();
+            window.location.reload(false);
+        }).catch((error) => {
+            if (notification) notification.error("Could not save changes.");
+        });
+    }
+  }
+
   _onLoginCancel() {
-    hideDialog("loginDialog", this.shadowRoot!);
+    if (!this._creatingAccount && !this._resetingPassword) {
+        hideDialog("loginDialog", this.shadowRoot!);
+    }
+    this._creatingAccount = false;
+    this._resetingPassword = false;
   }
 
   _onLogin() {
     let form:HTMLFormElement = this.shadowRoot!.querySelector<HTMLFormElement>("#loginForm")!;
-    if(formElementsComplete(form, ["username", "password"])) {
+    let notification : CustomNotification = this.shadowRoot.querySelector<CustomNotification>("#custom-notification")!;
+    if (!this._resetingPassword && formElementsComplete(form, ["username", "password"])) {
         let username = (form.elements["username"] as HTMLInputElement).value;
         let password = (form.elements["password"] as HTMLInputElement).value;
-        signIn(username, password).catch((error) => {
-            let notification : CustomNotification = this.shadowRoot.querySelector<CustomNotification>("#custom-notification")!;
-            if (notification) {
-                notification.error("Username or password is incorrect");
-            }
-        });
+        if (this._creatingAccount) {
+            signUp(username, password)
+                    .then((resp) => {
+                if (notification) notification.save("Account created!");
+                    })
+                    .catch((error) => {
+                if (notification) notification.error(error.message);
+            });
+            this._creatingAccount = false;
+        } else {
+            signIn(username, password).catch((error) => {
+                if (notification) notification.error("Username or password is incorrect");
+            });
+        }
         this._onLoginCancel();
+    } else if (this._resetingPassword && formElementsComplete(form, ["username"])) {
+        let username = (form.elements["username"] as HTMLInputElement).value;
+        resetPassword(username)
+                .then((resp) => {
+            if (notification) notification.save("Email send");
+            this._resetingPassword = false;
+                })
+                .catch((error) => {
+            if (notification) notification.error(error.message);
+            this._resetingPassword = false;
+        });
     }
   }
 

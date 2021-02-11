@@ -100,6 +100,14 @@ span.resource {
     padding: 1px 4px;
 }
 
+.monospaced {
+    font: 12px Monaco, Consolas, "Andale Mono", "DejaVu Sans Mono", monospace;
+}
+
+.number {
+    font-family: helvetica;
+}
+
 span.author {
     border: 2px solid cadetblue;
 }
@@ -138,12 +146,20 @@ span.variable-presentation {
     font: 12px Monaco, Consolas, "Andale Mono", "DejaVu Sans Mono", monospace;
 }
 
-.monospaced {
-    font: 12px Monaco, Consolas, "Andale Mono", "DejaVu Sans Mono", monospace;
+span.data-transformation {
+    border: 2px solid darkgray;;
 }
 
-.number {
-    font-family: helvetica;
+span.funding-information {
+    border: 2px solid cornflowerblue;
+}
+
+span.numerical-index {
+    border: 2px solid chocolate;
+}
+
+span.visualization {
+    border: 2px solid salmon;
 }
 
 `

@@ -12,14 +12,19 @@ import { Action, ActionCreator } from 'redux';
 import { ThunkAction } from 'redux-thunk';
 import { RootState, store } from './store';
 import { explorerClearModel, explorerSetModel, explorerSetVersion, explorerSetConfig, addModelToCompare, clearCompare,
-         explorerSetCalibration, explorerSetMode } from '../screens/models/model-explore/ui-actions';
-import { selectScenario, selectPathway, selectSubgoal, selectPathwaySection, selectTopRegion, selectThread } from './ui-actions';
+         explorerSetCalibration, explorerSetMode, registerSetStep } from '../screens/models/model-explore/ui-actions';
+import { selectProblemStatement, selectThread, selectTask, selectThreadSection, selectTopRegion,
+         selectDataTransformation } from './ui-actions';
 import { auth, db } from '../config/firebase';
 import { User } from 'firebase';
-import { UserPreferences, MintPreferences, UserProfile } from './reducers';
+import { MintPreferences, UserProfile } from './reducers';
 import { DefaultApi } from '@mintproject/modelcatalog_client';
 import { dexplorerSelectDataset, dexplorerSelectDatasetArea } from 'screens/datasets/ui-actions';
 import { selectEmulatorModel } from 'screens/emulators/actions';
+
+import * as mintConfig from '../config/config.json';
+
+import ReactGA from 'react-ga';
 
 export const BASE_HREF = document.getElementsByTagName("base")[0].href.replace(/^http(s)?:\/\/.*?\//, "/");
 
@@ -53,10 +58,11 @@ type ThunkResult = ThunkAction<void, RootState, undefined, AppAction>;
 export const OFFLINE_DEMO_MODE = false;
 
 /* This retrieve the user profile from the db. Maybe we should move this to other file. */
-type UserProfileThunkResult = ThunkAction<void, RootState, undefined, AppActionFetchUserPreferences>;
+type UserProfileThunkResult = ThunkAction<Promise<any>, RootState, undefined, AppActionFetchUserPreferences>;
 export const fetchUserProfile: ActionCreator<UserProfileThunkResult> = (user:User) => (dispatch) => {
     let ref = db.collection('users').doc(user.email);
-    ref.get().then((qs) => {
+    let q = ref.get()
+    q.then((qs) => {
         let profile = qs.data();
         if (profile) {
             dispatch({
@@ -64,7 +70,30 @@ export const fetchUserProfile: ActionCreator<UserProfileThunkResult> = (user:Use
                 profile: profile as UserProfile
             });
         }
-    })
+    });
+    return q;
+}
+
+type SetProfileThunkResult = ThunkAction<Promise<void>, RootState, undefined, AppActionFetchUserPreferences>;
+//export const setUserProfile = (user:User, profile:UserProfile) : Promise<void> => {
+export const setUserProfile: ActionCreator<SetProfileThunkResult> = (user:User, profile:UserProfile) => (dispatch) => {
+    let userProfiles = db.collection('users');
+    let id = user.email;
+    if (!id || !userProfiles || !profile) {
+        return Promise.reject('Must include user id and a valid profile.');
+    }
+    let req = userProfiles.doc(id).set(profile);
+    req.then(() => { 
+        dispatch({
+            type: FETCH_USER_PROFILE,
+            profile: profile
+        });
+    });
+    return req;
+}
+
+export const resetPassword = (email:string) => {
+    return auth.sendPasswordResetEmail(email);
 }
 
 type UserThunkResult = ThunkAction<void, RootState, undefined, AppActionFetchUser>;
@@ -72,28 +101,29 @@ export const fetchUser: ActionCreator<UserThunkResult> = () => (dispatch) => {
   //console.log("Subscribing to user authentication updates");
   auth.onAuthStateChanged(user => {
     if (user) {
-      // Check the state of the model-catalog access token.
-      let state: any = store.getState();
-      if (!state.app.prefs.modelCatalog.status) {
-        // This happen when we are already auth on firebase, the access token should be on local storage
-        let accessToken = localStorage.getItem('accessToken');
-        if (accessToken) {
-            store.dispatch({type: FETCH_MODEL_CATALOG_ACCESS_TOKEN, accessToken: accessToken});
-        } else {
-            console.error('No access token on local storage!')
-            // Should log out
-        }
-      } else if (state.app.prefs.modelCatalog.status === 'ERROR') {
-          console.error('Login failed!');
-          // Should log out
-      }
+      ReactGA.set({ userId: user.email });
+      dispatch(fetchUserProfile(user)).then(() => {
+          // Check the state of the model-catalog access token.
+          let state: any = store.getState();
+          if (!state.app.prefs.modelCatalog.status) {
+            // This happen when we are already auth on firebase, the access token should be on local storage
+            let accessToken = localStorage.getItem('accessToken');
+            if (accessToken) {
+                store.dispatch({type: FETCH_MODEL_CATALOG_ACCESS_TOKEN, accessToken: accessToken});
+            } else {
+                console.info('No access token on local storage!')
+                // Should log out
+            }
+          } else if (state.app.prefs.modelCatalog.status === 'ERROR') {
+              console.error('Login failed!');
+              // Should log out
+          }
 
-      dispatch(fetchUserProfile(user));
-
-      dispatch({
-        type: FETCH_USER,
-        user: user
-      });
+          dispatch({
+            type: FETCH_USER,
+            user: user
+          });
+        })
     } else {
       dispatch({
         type: FETCH_USER,
@@ -105,34 +135,37 @@ export const fetchUser: ActionCreator<UserThunkResult> = () => (dispatch) => {
 
 type UserPrefsThunkResult = ThunkAction<void, RootState, undefined, AppActionFetchMintConfig>;
 export const fetchMintConfig: ActionCreator<UserPrefsThunkResult> = () => (dispatch) => {
-  db.doc("configs/main").get().then((doc) => {
-    let prefs = doc.data() as MintPreferences;
-    if(prefs.execution_engine == "wings") {
-      fetch(prefs.wings.server + "/config").then((res) => {
-        res.json().then((wdata) => {
-          prefs.wings.export_url = wdata["internal_server"]
-          prefs.wings.storage = wdata["storage"];
-          prefs.wings.dotpath = wdata["dotpath"];
-          prefs.wings.onturl = wdata["ontology"];
-          dispatch({
-            type: FETCH_MINT_CONFIG,
-            prefs: prefs
-          });
-        })
+  let prefs = mintConfig["default"] as MintPreferences;
+  if(prefs.execution_engine == "wings") {
+    fetch(prefs.wings.server + "/config").then((res) => {
+      res.json().then((wdata) => {
+        prefs.wings.export_url = wdata["internal_server"]
+        prefs.wings.storage = wdata["storage"];
+        prefs.wings.dotpath = wdata["dotpath"];
+        prefs.wings.onturl = wdata["ontology"];
+        dispatch({
+          type: FETCH_MINT_CONFIG,
+          prefs: prefs
+        });
       })
-    }
-    else {
-      dispatch({
-        type: FETCH_MINT_CONFIG,
-        prefs: prefs
-      });
-    }
-  })
-  return;
+    })
+  }
+  else {
+    dispatch({
+      type: FETCH_MINT_CONFIG,
+      prefs: prefs
+    });
+  }
 };
 
 export const signIn = (email: string, password: string) => {
   let req = auth.signInWithEmailAndPassword(email, password)
+        .then(() => modelCatalogLogin(email, password));
+  return req;
+};
+
+export const signUp = (email: string, password: string) => {
+  let req = auth.createUserWithEmailAndPassword(email, password)
         .then(() => modelCatalogLogin(email, password));
   return req;
 };
@@ -153,7 +186,6 @@ const modelCatalogLogin = (username: string, password: string) => {
         let accessToken : string = JSON.parse(data)['access_token'];
         if (accessToken) {
             localStorage.setItem('accessToken', accessToken);
-            console.log('NEW TOKEN:', accessToken);
             store.dispatch({type: FETCH_MODEL_CATALOG_ACCESS_TOKEN, accessToken: accessToken});
         } else {
             store.dispatch({type: STATUS_MODEL_CATALOG_ACCESS_TOKEN, status: 'ERROR'})
@@ -248,11 +280,35 @@ const loadPage: ActionCreator<ThunkResult> =
         } else if (subpage == 'compare') {
             import('../screens/models/models-compare').then((_module) => {
                 store.dispatch(clearCompare());
-                for (let i = 0; i < params.length; i++) {
-                    store.dispatch(addModelToCompare(params[i]));
+                if (params.length > 0) {
+                    store.dispatch(addModelToCompare(params[0]));
                 }
             });
         } else if (subpage == 'register') {
+            //TODO
+            if(params.length > 0) {
+                store.dispatch(explorerSetModel(params[0]));
+                if (params.length > 1) {
+                    let step : number = parseInt(params[1] as string);
+                    if (step) store.dispatch(registerSetStep(step));
+                }
+            } else {
+                store.dispatch(explorerClearModel());
+            }
+        } else if (subpage == 'edit') {
+            if (params[params.length -1] === 'edit' || params[params.length -1] === 'new') {
+                store.dispatch(explorerSetMode(params.pop()));
+            } else {
+                store.dispatch(explorerSetMode('view'));
+            }
+            if(params.length > 0) {
+                store.dispatch(explorerSetModel(params[0]));
+                if (params.length > 1) {
+                    store.dispatch(explorerSetVersion(params[1]));
+                }
+            } else {
+                store.dispatch(explorerClearModel());
+            }
         }
         break;
     default:

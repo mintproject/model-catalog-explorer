@@ -13,9 +13,19 @@ import { ExplorerStyles } from '../../model-explore/explorer-styles'
 import { Textfield } from 'weightless/textfield';
 import { Textarea } from 'weightless/textarea';
 import { Select } from 'weightless/select';
+import { ModelCatalogStandardVariable } from './standard-variable';
 
 @customElement('model-catalog-variable-presentation')
 export class ModelCatalogVariablePresentation extends connect(store)(ModelCatalogResource)<VariablePresentation> {
+    static get styles() {
+        return [ExplorerStyles, SharedStyles, this.getBasicStyles(), css`
+            .small-tooltip:hover::after {
+                width: 200px;
+                left: 30%;
+            }
+        `];
+    }
+
     protected classes : string = "resource variable-presentation";
     protected name : string = "variable presentation";
     protected pname : string = "variable presentations";
@@ -24,8 +34,29 @@ export class ModelCatalogVariablePresentation extends connect(store)(ModelCatalo
     protected resourcePost = variablePresentationPost;
     protected resourcePut = variablePresentationPut;
     protected resourceDelete = variablePresentationDelete;
+    public uniqueLabel : boolean = true;
 
-    public pageMax : number = 10
+    private _inputStandardVariable : ModelCatalogStandardVariable;
+
+    public pageMax : number = 10;
+    public inlineMax : number = 4;
+
+    constructor () {
+        super();
+        this._inputStandardVariable = new ModelCatalogStandardVariable();
+        this._inputStandardVariable.setActionMultiselect();
+    }
+
+    protected _editResource (r:VariablePresentation) {
+        super._editResource(r);
+        let edResource = this._getEditingResource();
+        this._inputStandardVariable.setResources( edResource.hasStandardVariable );
+    }
+
+    protected _createResource () {
+        this._inputStandardVariable.setResources(null);
+        super._createResource();
+    }
 
     protected _renderForm () {
         let edResource = this._getEditingResource();
@@ -43,24 +74,20 @@ export class ModelCatalogVariablePresentation extends connect(store)(ModelCatalo
             <wl-textfield id="var-long-name" label="Long Name" 
                 value=${edResource && edResource.hasLongName ? edResource.hasLongName[0] : ''}>
             </wl-textfield>
+            <div style="padding: 10px 0px;">
+                <div style="padding: 5px 0px; font-weight: bold;">Standard Variables</div>
+                ${this._inputStandardVariable}
+            </div>
         </form>`;
     }
 
-/*export interface VariablePresentation {
-    /* PARAMETER ???
-    hasDefaultValue?: Array<object> | null;
-    hasStandardVariable?: Array<StandardVariable> | null;
-    hasMinimumAcceptedValue?: Array<object> | null;
-    hasMaximumAcceptedValue?: Array<object> | null;
-    usesUnit?: Array<Unit> | null;
-
-    hasConstraint?: Array<string> | null;
-    partOfDataset?: Array<DatasetSpecification> | null;
-
-    hasLongName?: Array<string> | null;
-    hasShortName?: Array<string> | null;
-
-}*/
+    protected _renderResource (r:VariablePresentation) {
+        let desc : string = r && r.description ? r.description[0] : '';
+        return desc ? html`
+            <span class="tooltip small-tooltip" tip="${desc}">
+                ${getLabel(r).replaceAll('_',' ')}
+            </span>` : (r ? html`${getLabel(r).replaceAll('_',' ')}` : html`--`);
+    }
 
     protected _getResourceFromForm () {
         // GET ELEMENTS

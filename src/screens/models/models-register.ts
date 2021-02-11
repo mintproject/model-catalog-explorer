@@ -5,21 +5,25 @@ import { SharedStyles } from '../../styles/shared-styles';
 import { store, RootState } from 'app/store';
 import { connect } from 'pwa-helpers/connect-mixin';
 import { goToPage } from 'app/actions';
+import { CustomNotification } from 'components/notification';
 
 import './configure/resources/person';
 import './configure/resources/grid';
+import './configure/resources/numerical-index';
 
 import { ModelCatalogPerson } from './configure/resources/person';
 import { ModelCatalogGrid } from './configure/resources/grid';
 import { ModelCatalogFundingInformation } from './configure/resources/funding-information';
 import { ModelCatalogVisualization } from './configure/resources/visualization';
+import { ModelCatalogNumericalIndex } from './configure/resources/numerical-index';
+import { ModelCatalogModel } from './configure/resources/model';
 
 import { renderNotifications } from "util/ui_renders";
 import { showNotification } from 'util/ui_functions';
 
-import { modelPost } from 'model-catalog/actions';
-import { Model, ModelFromJSON } from '@mintproject/modelcatalog_client';
-import { getId } from 'model-catalog/util';
+import { modelGet, modelPost, modelPut, versionPost } from 'model-catalog/actions';
+import { Model, Person, ModelFromJSON, SoftwareVersion, SoftwareVersionFromJSON } from '@mintproject/modelcatalog_client';
+import { getId, getLabel, getURL } from 'model-catalog/util';
 
 import 'components/loading-dots'
 import "weightless/title";
@@ -156,31 +160,38 @@ export class ModelsRegister extends connect(store)(PageViewElement) {
     }
 
     @property({type: Boolean})
-    private _hideLateral : boolean = false;
+    private _hideLateral : boolean = true;
 
     @property({type: Boolean})
     private _waiting : boolean = false;
 
-    private _inputAuthor : ModelCatalogPerson;
-    private _inputContributor : ModelCatalogPerson;
-    private _inputContactPerson : ModelCatalogPerson;
-    private _inputGrid : ModelCatalogGrid;
-    private _inputFunding : ModelCatalogFundingInformation;
-    private _inputVisualization : ModelCatalogVisualization;
+    @property({type: String})
+    private _modelid : string = "";
+
+    @property({type: Number})
+    private _step : number = 0;
+
+    @property({type: Object})
+    private _model : Model;
+
+    private _iModel : ModelCatalogModel;
 
     public constructor () {
         super();
-        this._inputAuthor = new ModelCatalogPerson();
-        this._inputContributor = new ModelCatalogPerson();
-        this._inputContactPerson = new ModelCatalogPerson();
-        this._inputGrid = new ModelCatalogGrid();
-        this._inputFunding = new ModelCatalogFundingInformation();
-        this._inputVisualization = new ModelCatalogVisualization();
+        this._iModel = new ModelCatalogModel();
+        this._iModel.enableSingleResourceCreation();
+    }
 
-        [this._inputAuthor, this._inputContributor, this._inputContactPerson, this._inputVisualization]
-                .forEach((input) => input.setActionMultiselect());
-        [this._inputGrid, this._inputFunding]
-                .forEach((input) => input.setActionSelect());
+    firstUpdated () {
+        this.addEventListener('model-catalog-save', (e:Event) => {
+            let detail : Model = e['detail'];
+            this._iModel.enableSingleResourceCreation();
+            if (detail.type && detail.type.indexOf("Model") >= 0)
+                goToPage('models/explore/' + getURL(detail));
+        })
+        this.addEventListener('model-catalog-cancel', () => {
+            this._iModel.enableSingleResourceCreation();
+        });
     }
 
     protected render() {
@@ -193,24 +204,26 @@ export class ModelsRegister extends connect(store)(PageViewElement) {
             </div>
             <div class="${this._hideLateral ? 'right_full' : 'right'}">
                 <div class="card2">
-                    <div style="height: 24px;">
+                    <div style="height: 24px;" id="page-top">
                         <wl-icon @click="${() => this._hideLateral = !this._hideLateral}"
                             class="actionIcon bigActionIcon" style="float:right">
                             ${!this._hideLateral ? "fullscreen" : "fullscreen_exit"}
                         </wl-icon>
                     </div>
-                    ${this._renderStepForm()}
-                    <div class="footer">
-                        <wl-button @click="${this._onContinueButtonClicked}" .disabled="${this._waiting}">
-                            continue 
-                            ${this._waiting ? html`<loading-dots style="--width: 20px; margin-left: 5px;"></loading-dots>` : ''}
-                        </wl-button>
-                    </div>
+                    <wl-title level="4">
+                        To register a new model, please fill the following form:
+                    </wl-title>
+                    ${this._iModel}
                 </div>
             </div>
         </div>
-        ${renderNotifications()}
         `
+    }
+
+    private _scrollUp () {
+        let head = this.shadowRoot.getElementById('page-top');
+        if (head) 
+            head.scrollIntoView({behavior: "smooth", block: "start"})
     }
 
     private _renderSteps () {
@@ -218,7 +231,7 @@ export class ModelsRegister extends connect(store)(PageViewElement) {
             <wl-title level="4">
                 Steps for creating a new model:
             </wl-title>
-            <div class="step" active>
+            <div class="step" ?active="${this._step <= 1}" ?disabled="${this._step > 1}">
                 <div>
                     <wl-title level="3"> Step 1: </wl-title>
                     <div>Describe your model</div>
@@ -228,7 +241,7 @@ export class ModelsRegister extends connect(store)(PageViewElement) {
                 </div>
             </div>
 
-            <div class="step" disabled>
+            <div class="step" ?active="${this._step == 2}" ?disabled="${this._step < 2}">
                 <div>
                     <wl-title level="3"> Step 2: </wl-title>
                     <div>Make your model discoverable</div>
@@ -238,10 +251,10 @@ export class ModelsRegister extends connect(store)(PageViewElement) {
                 </div>
             </div>
 
-            <div class="step" disabled>
+            <div class="step" ?active="${this._step == 3}" ?disabled="${this._step < 3}">
                 <div>
                     <wl-title level="3"> Step 3: </wl-title>
-                    <div>Make your model executable</div>
+                    <div>Register a initial version</div>
                 </div>
                 <div>
                     <wl-icon>library_books</wl-icon>
@@ -250,211 +263,14 @@ export class ModelsRegister extends connect(store)(PageViewElement) {
         `;
     }
 
-    private _renderStepForm () {
-        return html`
-            <wl-title level="2">Describe your model</wl-title>
-
-            <table class="details-table">
-                <colgroup width="150px">
-                <tr>
-                    <td colspan="2" style="padding: 5px 20px;">
-                        <wl-textfield id="m-name" label="Model name" required></wl-textfield>
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>Category:</td>
-                    <td>
-                        <wl-select id="m-category" name="Category" required>
-                            <option value="">None</option>
-                            <option value="Agriculture">Agriculture</option>
-                            <option value="Hydrology">Hydrology</option>
-                            <option value="Economy">Economy</option>
-                            <option value="Weather">Weather</option>
-                            <option value="Land Use">Land Use</option>
-                        </wl-select>
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>Short description:</td>
-                    <td>
-                        <textarea id="m-short-desc" name="Short description" rows="3"></textarea>
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>Full description:</td>
-                    <td>
-                        <textarea id="m-desc" name="Description" rows="5"></textarea>
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>Example:</td>
-                    <td>
-                        <textarea id="m-example" name="Example" rows="4"></textarea>
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>Keywords:</td>
-                    <td>
-                        <wl-textfield id="m-keywords" name="Keywords"/>
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>License:</td>
-                    <td>
-                        <textarea id="m-license" name="License" rows="2"></textarea>
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>Citation:</td>
-                    <td>
-                        <textarea id="m-citation" name="Citation" rows="2"></textarea>
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>Website:</td>
-                    <td>
-                        <wl-textfield id="m-website" name="Website"></wl-textfield>
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>Documentation page:</td>
-                    <td>
-                        <wl-textfield id="m-documentation" name="Documentation"></wl-textfield>
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>Model creator:</td>
-                    <td>
-                        ${this._inputAuthor}
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>Contributors:</td>
-                    <td>
-                        ${this._inputContributor}
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>Contact person:</td>
-                    <td>
-                        ${this._inputContactPerson}
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>Grid:</td>
-                    <td>
-                        ${this._inputGrid}
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>Funding:</td>
-                    <td>
-                        ${this._inputFunding}
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>Visualizations:</td>
-                    <td>
-                        ${this._inputVisualization}
-                    </td>
-                </tr>
-            </table>
-        `;
-    }
-
-    private _getResourceFromForm () {
-        let inputLabel : Textfield = this.shadowRoot.getElementById('m-name') as Textfield;
-        let inputCategory : Select = this.shadowRoot.getElementById('m-category') as Select;
-        let inputShortDesc : Textarea = this.shadowRoot.getElementById("m-short-desc") as Textarea;
-        let inputDesc : Textarea = this.shadowRoot.getElementById("m-desc") as Textarea;
-        let inputExample : Textarea = this.shadowRoot.getElementById("m-example") as Textarea;
-        let inputKeywords : Textfield = this.shadowRoot.getElementById("m-keywords") as Textfield;
-        let inputLicense : Textarea = this.shadowRoot.getElementById("m-license") as Textarea;
-        let inputCitation : Textarea = this.shadowRoot.getElementById("m-citation") as Textarea;
-        let inputWebsite : Textfield = this.shadowRoot.getElementById("m-website") as Textfield;
-        let inputDocumentation : Textfield = this.shadowRoot.getElementById("m-documentation") as Textfield;
-
-        let label : string = inputLabel ? inputLabel.value : '';
-        let category  : string =       inputCategory?     inputCategory.value : '';
-        let shortDesc  : string =      inputShortDesc?    inputShortDesc.value : '';
-        let desc  : string =           inputDesc?         inputDesc.value : '';
-        let example  : string =        inputExample?      inputExample.value : '';
-        let keywords  : string =       inputKeywords?     inputKeywords.value : '';
-        let license  : string =        inputLicense?      inputLicense .value : '';
-        let citation  : string =       inputCitation?     inputCitation.value : '';
-        let website  : string =        inputWebsite?      inputWebsite.value : '';
-        let documentation  : string =  inputDocumentation? inputDocumentation.value : '';
-
-        if (label && desc && category) {
-            let jsonRes = {
-                type: ["Model"],
-                label: [label],
-                hasModelCategory: [category],
-                description: [desc],
-                contributor: this._inputContributor.getResources(),
-                hasContactPerson: this._inputContactPerson.getResources(),
-                author: this._inputAuthor.getResources(),
-                hasGrid: this._inputGrid.getResources(),
-                hasFunding: this._inputFunding.getResources(),
-                hasSampleVisualization: this._inputVisualization.getResources(),
-            };
-            if (shortDesc) jsonRes["shortDescription"] = [shortDesc];
-            if (example) jsonRes["hasExample"] = [example];
-            if (keywords) jsonRes["keywords"] = [keywords];
-            if (license) jsonRes["license"] = [license];
-            if (citation) jsonRes["citation"] = [citation];
-            if (website) jsonRes["website"] = [website];
-            if (documentation) jsonRes["hasDocumentation"] = [documentation];
-            //TODO:DATE
-
-            return ModelFromJSON(jsonRes);
-        } else {
-            if (!label) (<any>inputLabel).onBlur();
-            if (!category) (<any>inputCategory).onBlur();
-        }
-    }
-
-    private _onContinueButtonClicked () {
-        let newModel = this._getResourceFromForm();
-        if (newModel) {
-            showNotification("saveNotification", this.shadowRoot!);
-            this._waiting = true;
-            let req = store.dispatch(modelPost(newModel));
-            req.then((model:Model) => {
-                this._waiting = false;
-                console.log('new model!', model);
-                let url = 'models/explore/' + getId(model);
-                goToPage(url);
-            });
-        }
-    }
-
-    private _shouldClear : boolean = false;
+    private _here : boolean = false;
     stateChanged(state: RootState) {
         if (state.app) {
-            if (state.app.subpage === 'register') {
-                if (this._shouldClear)
-                    [this._inputAuthor, this._inputContributor, this._inputContactPerson,
-                     this._inputGrid, this._inputFunding, this._inputVisualization]
-                        .forEach((input) => input.setResources(null));
-            } else {
-                this._shouldClear = true;
+            if (!this._here && state.app.subpage === 'register') {
+                this._iModel.scrollUp();
+                this._iModel.clearForm();
             }
+            this._here = state.app.subpage === 'register';
         } 
     }
 }
