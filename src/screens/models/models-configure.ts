@@ -177,7 +177,7 @@ export class ModelsConfigure extends connect(store)(PageViewElement) {
                     this._selectedVersion.split('/').pop() + '/';
             if (isSetup(detail["type"])) {
                 goToPage(url + this._selectedConfig.split('/').pop());
-            } else {
+            } else if (isConfig(detail["type"])) {
                 goToPage(url);
             }
         });
@@ -342,6 +342,12 @@ export class ModelsConfigure extends connect(store)(PageViewElement) {
                         this._iConfig.enableSingleResourceCreation(this._version);
                     }
                 }
+
+                if (this._model && this._version && this._editing) {
+                    if (this._config && !this._setup) this._iConfig.editSelectedResource();
+                    else if (this._config && this._setup) this._iSetup.editSelectedResource();
+                }
+
             }
         }
 

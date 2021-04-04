@@ -86,7 +86,7 @@ export interface ModelCatalogPreferences {
 }
 
 export type UserProfile = {
-    mainRegion: string,
+    mainRegion?: string,
     graph: string,
 }
 
