@@ -49,32 +49,16 @@ export class MintAbout extends PageViewElement {
                 <br/>
                 <p>
                     The  Model Explorer is an application for finding and exploring software models and metadata available
-                    in the MINT Model Catalog without having to interact with the APIs or clients designed for developers.
+                    in the WIFIRE Model Catalog without having to interact with the APIs or clients designed for developers.
                 </p> 
                 <p>
                     Users can search for existing software models by typing their names, categories or keywords.
                 </p>
                 <p>
                     Once a model is selected, the application will show its available versions and software configurations
-                    so users can explore their corresponding inputs and outputs.
+                    so users can explore their corresponding inputs and outputs 
+                    (e.g. <a href="/models/explore/quic_fire">QUIC-Fire Model</a>).
                 </p>
-                <img src="/images/example.gif"></img>
-                <p>
-                    See an example here: <a href="/models/explore/PIHM">Penn State Integrated Hydrology Model</a>
-                </p> 
-                <p>
-                    If several software configurations are available for a particular model version, the application will 
-                    display them side by side to enable comparison.
-                </p>
-                <p>
-                    The following video is a quick introduction to the model catalog capabilities:
-                </p>
-                <div style="text-align: center;">
-                    <iframe width="560" height="315" 
-                     src="https://www.youtube.com/embed/C9rxGT2k9is" frameborder="0"
-                     allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                </div>
-                <br/>
 
                 <p> 
                     The Model Explorer is maintained in a 
@@ -82,16 +66,12 @@ export class MintAbout extends PageViewElement {
                     and it is currently optimized for the Chrome browser.
                 </p>
                 <p>
-                    The development of the MINT Model Explorer was led by Daniel Garijo, and implemented by Hernán
-                    Vargas, Varun Ratnakar, Dhruv Pattel, Shreyas Kolpe, Rohit Mayura and Yash Dholakia.
-                    Other contributors include Deborah Khider, Yolanda Gil, Scott Peckham, Chris Duffy, Kelly Cobourn,
-                    Suzanne Pierce, Zeya Zhang, Lele Shu and Mary Hill.
+                    <a href="http://mint-project.info/" target="_blank">
+                        Powered by MINT
+                    </a>.
+                    Contact us at <a href="mailto:mint-project@googlegroups.com">mint-project@googlegroups.com</a>
                 </p>
             </div>
-            <p style="text-align: right; padding: 15px 10px; font-style: oblique;">
-                For corrections or additions to the information in the MINT Model Explorer,
-                please contact us at <a href="mailto:mint-project@googlegroups.com">mint-project@googlegroups.com</a>
-            </p>
       </section>
     `
   }

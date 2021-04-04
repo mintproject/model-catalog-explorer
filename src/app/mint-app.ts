@@ -350,7 +350,7 @@ export class MintApp extends connect(store)(LitElement) {
         </div>
 
         <wl-button style="padding: 0px 5px;" flat inverted slot="right" @click="${()=>goToPage('about')}">
-          <img style="margin-left: 6px;" height="40" src="/images/logo.png">
+          <img style="margin-left: 6px;" height="40" src="/images/WIFIRE_LOGO.png">
         </wl-button>
       </wl-nav>
 
@@ -368,7 +368,7 @@ export class MintApp extends connect(store)(LitElement) {
                 </a>
             </nav-title>
 
-              ${(this._page == 'home' && this._infoActive) ? html`
+              ${(false && this._page == 'home' && this._infoActive) ? html`
               <div id="info">
                 <div> <wl-icon @click="${()=>{this._infoActive = false;}}">clear<wl-icon> </div>
                 <div class="cont"> 
@@ -420,10 +420,10 @@ export class MintApp extends connect(store)(LitElement) {
     <wl-dialog id="loginDialog" fixed backdrop blockscrolling>
       <h3 slot="header">
         ${this._creatingAccount ? 
-          'Choose an email and password for your MINT account' :
+          'Choose an email and password for your account' :
           (this._resetingPassword ? 
             'Enter your email to reset your password'
-            : 'Please enter your email and password for MINT')}
+            : 'Please enter your email and password')}
       </h3>
       <div slot="content">
         <p></p>
@@ -463,7 +463,7 @@ export class MintApp extends connect(store)(LitElement) {
     return html`
     <wl-dialog id="configDialog" fixed backdrop blockscrolling>
       <h3 slot="header">
-          Configure your MINT account
+          Configure your account
       </h3>
       <div slot="content">
         <p></p>

@@ -177,15 +177,15 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
         let hasResults = Object.values(this._activeModels).some(x=>x);
         return html`
             <wl-text class="explanation">
-                The MINT model browser allows you to learn about the different models included in MINT.
+                The model browser allows you to learn about the different models included in this model catalog.
                 Each model can have separate configurations, each representing a unique functionality 
-                of that model (particular choices of processes, regions, etc).
+                of that model (particular choices of regions, inputs, proceses, etc).
                 Each configuration can have separate setups that provide different default values for
                 files and parameters.
                 <br/>
                 In the search bar below you can search models in several ways, which you can choose on the right.
-                You can search by model name, description, type (e.g. agriculture), keywords (fertilizer),
-                areas (e.g. Pongo), variables (e.g. rainfall), index or intervention.
+                You can search by model name, description, type (e.g. fire), keywords (simulation),
+                areas (e.g. California), variables (e.g. wind), index or intervention.
             </wl-text>
             <div id="model-search-form">
                 <!-- https://github.com/andreasbm/weightless/issues/58 -->
@@ -230,8 +230,9 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
                 }
             </div>
             <p style="text-align: right; margin: 5px 10px 0px 0px; font-style: oblique;">
-                For corrections or additions to the information in the MINT Model Explorer,
-                please contact us at <a href="mailto:mint-project@googlegroups.com">mint-project@googlegroups.com</a>
+                <a href="http://mint-project.info/" target="_blank">
+                    Powered by MINT
+                </a>
             </p>
         `
     }

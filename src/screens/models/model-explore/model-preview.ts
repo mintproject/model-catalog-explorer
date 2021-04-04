@@ -203,8 +203,8 @@ export class ModelPreview extends connect(store)(PageViewElement) {
                 <td class="left"> 
                   <div class="text-centered">
                     ${this._nSetups < 0 ? html`<loading-dots></loading-dots>`
-                      : (this._nSetups > 0 ? html`<b style="color: darkgreen;">Executable in MINT</b>`
-                        : html`<b style="color: chocolate;">Not executable in MINT</b>`
+                      : (this._nSetups > 0 ? html`<b style="color: darkgreen;">Executable</b>`
+                        : html`<b style="color: chocolate;">Not executable</b>`
                       )
                     }
                   </div>
