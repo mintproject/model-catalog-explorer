@@ -177,7 +177,8 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
         let hasResults = Object.values(this._activeModels).some(x=>x);
         return html`
             <wl-text class="explanation">
-                The model browser allows you to learn about the different models included in this model catalog.
+                The WIFIRE Model Commons contains useful descriptions of science-grade models available to simulate
+                controlled and wildfires.
                 Each model can have separate configurations, each representing a unique functionality 
                 of that model (particular choices of regions, inputs, proceses, etc).
                 Each configuration can have separate setups that provide different default values for
