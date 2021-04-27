@@ -48,23 +48,25 @@ export class MintAbout extends PageViewElement {
                 <wl-divider></wl-divider>
                 <br/>
                 <p>
-                    The  Model Explorer is an application for finding and exploring software models and metadata available
-                    in the WIFIRE Model Catalog without having to interact with the APIs or clients designed for developers.
+                    The WIFIRE Model Commons supports the discovery and exploration of fire models based on simulation needs.
+                    It uses AI reasoners to recommend appropriate models to users based on model characteristics and metadata.
+                    The WIFIRE Model Commons can be accessed through a user interface or through APIs and clients designed for
+                    application developers.
                 </p> 
+
                 <p>
-                    Users can search for existing software models by typing their names, categories or keywords.
-                </p>
-                <p>
-                    Once a model is selected, the application will show its available versions and software configurations
-                    so users can explore their corresponding inputs and outputs 
-                    (e.g. <a href="/models/explore/quic_fire">QUIC-Fire Model</a>).
+                    Once a model is selected, several versions and configurations may be available that are customized for
+                    different scenarios. 
                 </p>
 
-                <p> 
-                    The Model Explorer is maintained in a 
-                    <a href="https://github.com/mintproject/model-catalog-explorer" target="_blank">GitHub repository</a>,
-                    and it is currently optimized for the Chrome browser.
+                <p>
+                    The WIFIRE Model Commons was originally developed as part of the 
+                    <a href="http://mint-project.info/" target="_blank">MINT modeling framework</a>.
+                    The software is open source and is maintained in a 
+                    <a href="https://github.com/mintproject/model-catalog-explorer" target="_blank">GitHub repository</a>.
+                    The user interface is currently optimized for the Chrome browser.
                 </p>
+
                 <p>
                     <a href="http://mint-project.info/" target="_blank">
                         Powered by MINT

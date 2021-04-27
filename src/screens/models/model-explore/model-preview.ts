@@ -193,8 +193,10 @@ export class ModelPreview extends connect(store)(PageViewElement) {
         ];
     }
 
+    private lastIdRendered = "";
     protected render() {
         if (this._model) {
+            if (this.lastIdRendered != this.id) this.stateChanged(store.getState() as RootState);
             let modelType : string[] = this._model.type ? getModelTypeNames(this._model.type) : [];
             let modelUri : string = (this._url? this._url : this.PREFIX + getId(this._model));
         return html`
@@ -276,6 +278,7 @@ export class ModelPreview extends connect(store)(PageViewElement) {
         /* Load this model and, if is needed versions, configs and setups */
         if (db && db.models[this.id] && db.models[this.id] != this._model) {
             this._model = db.models[this.id];
+            this.lastIdRendered = this._model.id;
             this._loadingLogo = (this._model.logo && this._model.logo.length > 0);
 
             if (this._model.hasVersion) {

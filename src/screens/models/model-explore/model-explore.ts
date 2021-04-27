@@ -8,10 +8,10 @@ import { store, RootState } from 'app/store';
 import { goToPage } from 'app/actions';
 import { IdMap } from 'app/reducers';
 
-import { isEmpty, uriToId, getLabel } from 'model-catalog/util';
+import { isEmpty, uriToId, getLabel, getId } from 'model-catalog/util';
 import { Model, NumericalIndex } from '@mintproject/modelcatalog_client';
 import { modelsSearchIndex, modelsSearchIntervention, numericalIndexsGet,
-         modelsSearchRegion, modelsSearchStandardVariable } from 'model-catalog/actions';
+         modelsSearchRegion, modelsSearchStandardVariable, getIdFromUri } from 'model-catalog/actions';
 import { CustomNotification } from 'components/notification';
 
 import './model-preview'
@@ -174,7 +174,13 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
     }
 
     _renderSearch () {
-        let hasResults = Object.values(this._activeModels).some(x=>x);
+        let hasResults : boolean = Object.values(this._activeModels).some(x=>x);
+        //TODO: Should be a way to order by calculed subproperties.
+        let ordered : string[] = Object.values(this._models).sort((m1:Model, m2:Model) => {
+            if (getId(m1) == "quic_fire") return -1;
+            if (getId(m2) == "quic_fire") return 1;
+            return 0;
+        }).map((m:Model) => m.id);
         return html`
             <wl-text class="explanation">
                 The WIFIRE Model Commons contains useful descriptions of science-grade models available to simulate
@@ -209,7 +215,7 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
                 ${this._loading? html`
                     <div class="centered-info"><wl-progress-spinner></wl-progress-spinner></div>`
                 : (hasResults ? 
-                    Object.keys(this._models).map((key:string) => html`
+                    ordered.map((key:string) => html`
                     <model-preview .id="${key}" ?active="${this._activeModels[key]}">
 
                       <div slot="description">
@@ -230,11 +236,14 @@ export class ModelExplorer extends connect(store)(PageViewElement) {
                     </div>`)
                 }
             </div>
-            <p style="text-align: right; margin: 5px 10px 0px 0px; font-style: oblique;">
-                <a href="http://mint-project.info/" target="_blank">
+            <div style="display: flex; margin: 5px 10px 0px 0px;justify-content: space-between;">
+                <a style=" font-style: oblique;" href="/about">
+                    About
+                </a>
+                <a style=" font-style: oblique;" href="http://mint-project.info/" target="_blank">
                     Powered by MINT
                 </a>
-            </p>
+            </div>
         `
     }
 
