@@ -142,15 +142,15 @@ export class MintApp extends connect(store)(LitElement) {
       }
 
       .breadcrumbs a.active {
-        background-color: #629b30;
+        background-color: #86181a;
         color: white;
       }
       .breadcrumbs a.active:before {
-        border-color: #629b30;
+        border-color: #86181a;
         border-left-color: transparent;
       }
       .breadcrumbs a.active:after {
-        border-left-color: #629b30;
+        border-left-color: #86181a;
       }
 
       .breadcrumbs a:first {
@@ -169,11 +169,11 @@ export class MintApp extends connect(store)(LitElement) {
         --button-padding: 6px;
       }
       .message-button.selected {
-        background-color: rgb(98, 155, 48);
+        background-color: #86181a;
         color: white;
       }
       .message-button.selected:hover {
-        background-color: rgb(98, 155, 48);
+        background-color: #86181a;
       }
       .message-button:hover {
         background-color: rgb(224, 224, 224);
@@ -253,6 +253,10 @@ export class MintApp extends connect(store)(LitElement) {
 
     #back-button:hover {
         background-color: rgb(224, 224, 224);
+    }
+    
+    .nav-buttons > wl-button {
+        --font-family-sans-serif: Montserrat;
     }`
     ];
   }
@@ -320,7 +324,7 @@ export class MintApp extends connect(store)(LitElement) {
 
         </div>
 
-        <div slot="right">
+        <div slot="right" class="nav-buttons">
         <wl-button flat inverted class="message-button ${this._subpage == 'configure' ? 'selected' : ''}" 
                    @click="${this._onConfigureClick}">
             Configure models <wl-icon style="margin-left: 4px;">settings</wl-icon>

@@ -13,11 +13,14 @@ import { css } from 'lit-element';
 export const SharedStyles = css`
 
   :host {
-    font-family: "Raleway";
-    --font-family-serif: "Raleway";
-    --font-family-sans-serif: "Raleway";
-    --primary-hue: 224;
-    --primary-saturation: 50%;
+    font-family: "Roboto";
+    --font-family-serif: "Roboto";
+    --font-family-sans-serif: "Roboto";
+
+    --primary-400: 0, 78%, 35%;
+    --primary-500: 0, 88%, 30%;
+    --primary-600: 0, 98%, 25%;
+
     font-size: 14px;
     color: #444;
   }
@@ -59,9 +62,9 @@ export const SharedStyles = css`
   }
 
   wl-nav wl-button[flat] {
-    --button-bg: #0f7acf;
-    --button-bg-hover: #0f7acf;
-    --button-bg-active: #0f7acf;
+    --button-bg: black;
+    --button-bg-hover: #8f0909;
+    --button-bg-active: #8f0909;
   }
 
   wl-list-item {
@@ -73,7 +76,7 @@ export const SharedStyles = css`
   }
 
   wl-title[level="3"] {
-    color: #06436c;
+    color: black;
   }
   wl-title[level="4"] {
     color: #06436c;
@@ -178,7 +181,7 @@ export const SharedStyles = css`
   .actionIcon.addIcon::before {
     content: "ADD ";
     font-size: 10px;
-    font-family: "Raleway";
+    font-family: "Roboto";
     vertical-align: 50%;
     font-weight: bold;
   }
@@ -618,6 +621,7 @@ export const SharedStyles = css`
 
   /* New Breadcrumbs css */
   .breadcrumbs {
+    font-family: Montserrat;
     list-style: none;
     display: inline-block;
     width: 100%;
