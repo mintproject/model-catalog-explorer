@@ -3,5 +3,5 @@ WORKDIR /usr/share/nginx/html
 COPY ./build/ ./
 RUN sed -i "s/es6\///g" index.html
 COPY default.conf /etc/nginx/conf.d/
-RUN sed -i "s/1.7.0/1.8.0/g" components/
+RUN sed -i "s/1.7.0/1.8.0/g" components/*.js
 EXPOSE 80
