@@ -129,7 +129,7 @@ jobs:
           valueFile: isi/values.yaml
           propertyPath: "MINT.components.model_catalog_explorer.image.tag"
           value: ${{ env.DOCKER_TAG }}
-          message: "Update Image Version to ${{ env.DOCKER_TAG }}"
+          message: "Update Model Explorer"
           repository: mintproject/mint-instances
           workDir: infrastructure
           branch: master 
@@ -155,7 +155,7 @@ jobs:
           valueFile: isi-dev/values.yaml
           propertyPath: "MINT.components.model_catalog_explorer.image.tag"
           value: ${{ env.DOCKER_TAG }}
-          message: "Update UI"
+          message: "Update Model Explorer"
           repository: mintproject/mint-instances
           workDir: infrastructure
           branch: master 
@@ -169,7 +169,7 @@ jobs:
           valueFile: helm/values.yaml
           propertyPath: "components.model_catalog_explorer.image.tag"
           value: ${{ env.DOCKER_TAG }}
-          message: "Update UI"
+          message: "Update Model Explorer"
           repository: mintproject/mint
           workDir: mint-chart/
           branch: main
