@@ -135,6 +135,20 @@ jobs:
           branch: master 
           token: ${{ secrets.MINT_INSTANCES }}
 
+
+      - name: Update MINT tacc 
+        uses: fjogeleit/yaml-update-action@main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        with:
+          valueFile: tacc/values.yaml
+          propertyPath: "MINT.components.model_catalog_explorer.image.tag"
+          value: ${{ env.DOCKER_TAG }}
+          message: "Update Model Explorer"
+          repository: mintproject/mint-instances
+          workDir: infrastructure
+          branch: master 
+          token: ${{ secrets.MINT_INSTANCES }}
+
       # - name: Update MINT ISI WIFIRE 
       #   uses: fjogeleit/yaml-update-action@main
       #   if: github.event_name == 'push' && github.ref == 'refs/heads/master'
